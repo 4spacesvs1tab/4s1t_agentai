@@ -1,0 +1,418 @@
+# Security Configuration for 4S1T Agent AI
+# This file defines security policies for file access, DLP, and code execution
+
+# =============================================================================
+# FILE ACCESS WHITELIST
+# Only these directories are accessible to the agent
+# All other paths will be rejected with PermissionError
+# =============================================================================
+file_access:
+  # Whitelist mode: If true, ONLY whitelisted directories are accessible
+  whitelist_mode: true
+  
+  # Allowed directories (absolute paths)
+  # User should customize these to their specific project directories
+  whitelisted_directories:
+    - "${PROJECT_ROOT}/src"
+    - "${PROJECT_ROOT}/tests"
+    - "${PROJECT_ROOT}/docs"
+    - "${PROJECT_ROOT}/data"
+    - "${PROJECT_ROOT}/config"
+    - "${PROJECT_ROOT}/web"
+    
+  # Alternative: Use home directory expansion
+  # whitelisted_directories:
+  #   - "~/Documents/git_repos/github-4spacesvs1tab/4s1t_agentai/src"
+  #   - "~/Documents/git_repos/github-4spacesvs1tab/4s1t_agentai/tests"
+  #   - "~/Documents/git_repos/github-4spacesvs1tab/4s1t_agentai/docs"
+  
+  # Base directory for relative paths (used if whitelist_mode is false)
+  base_directory: "${PROJECT_ROOT}"
+  
+  # Maximum file size for reads (prevents DoS)
+  max_file_size_mb: 10
+  
+  # Require approval for file reads (sends Authy push)
+  require_approval_for_reads: false
+  
+  # Protect source code from modification
+  protect_source_code: true
+  source_code_directories:
+    - "${PROJECT_ROOT}/src"
+    - "${PROJECT_ROOT}/services"
+    - "${PROJECT_ROOT}/config"
+
+# =============================================================================
+# DATA LOSS PREVENTION (DLP)
+# Prevents sensitive data from being exposed
+# =============================================================================
+dlp:
+  # Master switch
+  enabled: true
+  
+  # Scan chat responses for sensitive data
+  scan_chat_responses: true
+  
+  # Scan file contents before display
+  scan_file_contents: true
+  
+  # Scan code before execution
+  scan_code_before_execution: true
+  
+  # Action when sensitive data detected: 'block', 'warn', 'sanitize'
+  action: "block"
+  
+  # Categories to scan (all enabled by default)
+  categories:
+    bitcoin_secret: true      # Private keys, WIF, seeds
+    bitcoin_address: true     # Public addresses (lower priority)
+    nostr_secret: true        # nsec keys
+    nostr_public: false       # npub (can be shared)
+    lightning: true           # Macaroons, invoices
+    financial_account: true   # Bank accounts, IBAN
+    credit_card: true         # Credit card numbers
+    personal_address: true    # Home addresses
+    phone_number: true        # Phone numbers
+    gps_coordinates: true     # GPS coordinates
+    ip_address: true          # IP addresses
+    wifi_credential: true     # WiFi SSID/password
+    api_key: true             # API keys
+    private_key: true         # SSH/PEM keys
+    seed_phrase: true         # BIP39 seed phrases
+    ssn: true                 # Social Security Numbers
+    passport: true            # Passport numbers
+    email: false              # Emails (too common, may cause false positives)
+    mac_address: false        # MAC addresses (usually harmless)
+
+# =============================================================================
+# CODE EXECUTION SECURITY
+# Controls for sandboxed code execution
+# =============================================================================
+code_execution:
+  # Use sandboxed executor service (recommended)
+  use_executor_service: true
+  
+  # Executor service configuration
+  executor:
+    host: "executor"
+    port: 8001
+    timeout_seconds: 30
+    
+    # Require approval for code execution
+    require_approval: true
+    
+    # Approval timeout (minutes)
+    approval_timeout_minutes: 5
+    
+    # Risk assessment thresholds
+    risk_assessment:
+      auto_approve_low_risk: false
+      require_approval_for_medium_risk: true
+      block_high_risk: true
+      
+      # Risk factors
+      file_system_access_risk: "high"
+      network_access_risk: "critical"
+      system_call_risk: "critical"
+      import_external_module_risk: "medium"
+  
+  # Container restrictions (if using Docker)
+  container:
+    network_mode: "none"           # No network access
+    read_only: true                # Read-only filesystem
+    memory_limit: "128m"           # 128MB RAM limit
+    cpu_limit: "0.5"               # Half CPU core
+    pids_limit: 10                 # Max 10 processes
+    no_new_privileges: true        # Cannot escalate privileges
+    security_opts:
+      - "no-new-privileges:true"
+      - "seccomp:unconfined"       # Or use custom seccomp profile
+
+# =============================================================================
+# FORBIDDEN CODE PATTERNS
+# Code patterns that are blocked before execution
+# =============================================================================
+forbidden_code:
+  # File system operations
+  file_operations:
+    - "open\\s*\\("
+    - "file\\s*=\\s*open"
+    - "os\\.path\\."
+    - "pathlib\\."
+    - "shutil\\."
+    - "glob\\."
+    - ".*read\\s*\\("
+    - ".*write\\s*\\("
+    - "__file__"
+    - ".*listdir"
+    - ".*walk"
+    - ".*glob"
+    
+  # Network operations
+  network_operations:
+    - "import\\s+socket"
+    - "urllib\\."
+    - "requests\\."
+    - "httpx\\."
+    - "aiohttp\\."
+    - "socket\\."
+    - "connect"
+    - "http://"
+    - "https://"
+    
+  # System operations
+  system_operations:
+    - "os\\.system"
+    - "subprocess\\."
+    - "platform\\."
+    - "getpass\\."
+    - "pwd\\."
+    - "grp\\."
+    - "sys\\.argv"
+    - "exec"
+    - "eval"
+    - "compile"
+    - "__import__"
+    - "importlib"
+    
+  # Self-modification
+  self_modification:
+    - "__main__"
+    - "sys\\.modules"
+    - "compileall"
+    - "py_compile"
+    
+  # Crypto/Secrets handling (code shouldn't handle these)
+  crypto_handling:
+    - "base64\\."
+    - "hashlib\\."
+    - "cryptography"
+    - "pycryptodome"
+    - "key\\s*=\\s*"
+    - "seed\\s*=\\s*"
+    - "private\\s*=\\s*"
+    - "secret\\s*=\\s*"
+    - "password\\s*=\\s*"
+
+# =============================================================================
+# SELF-MODIFICATION PROTECTION
+# Prevents the agent from modifying its own code
+# =============================================================================
+self_protection:
+  enabled: true
+  
+  # Protected paths (cannot write/modify)
+  protected_paths:
+    - "${PROJECT_ROOT}/src"
+    - "${PROJECT_ROOT}/services"
+    - "${PROJECT_ROOT}/config"
+    - "${PROJECT_ROOT}/main.py"
+    - "${PROJECT_ROOT}/requirements.txt"
+    - "${PROJECT_ROOT}/.env"
+    
+  # Protected file extensions (cannot create/write)
+  protected_extensions:
+    - ".py"
+    - ".pyc"
+    - ".pyo"
+    - ".pyd"
+    - ".so"
+    - ".dll"
+    - ".dylib"
+    - ".exe"
+    - ".sh"
+    - ".yml"
+    - ".yaml"
+    - ".json"
+    - ".toml"
+    - ".ini"
+    - ".cfg"
+
+# =============================================================================
+# PERSONAL DATA PROTECTION
+# Blocks access to common personal data locations
+# =============================================================================
+personal_data_protection:
+  enabled: true
+  
+  # Forbidden directories (system)
+  forbidden_system_dirs:
+    - "/etc"
+    - "/var"
+    - "/root"
+    - "/proc"
+    - "/sys"
+    - "/dev"
+    - "/boot"
+    - "/usr/local/etc"
+    
+  # Forbidden home directory patterns
+  forbidden_home_patterns:
+    - ".ssh"
+    - ".gnupg"
+    - ".aws"
+    - ".azure"
+    - ".gcp"
+    - ".docker"
+    - ".bash_history"
+    - ".zsh_history"
+    - ".netrc"
+    - ".pgpass"
+    - ".my.cnf"
+    - ".git-credentials"
+    - "Documents/personal"
+    - "Documents/financial"
+    - "Documents/tax"
+    - "Documents/bank"
+    - "Downloads/statements"
+    - "Pictures/private"
+    - "Pictures/identity"
+    
+  # Forbidden file patterns
+  forbidden_file_patterns:
+    - "id_rsa"
+    - "id_dsa"
+    - "id_ecdsa"
+    - "id_ed25519"
+    - ".env"
+    - ".env.local"
+    - ".env.production"
+    - "password"
+    - "secret"
+    - "private_key"
+    - "api_key"
+    - "credentials"
+    - "wallet.dat"
+    - "seed.txt"
+    - "mnemonic"
+    - "recovery_phrase"
+    - "nsec"
+    - ".nsec"
+    - "credit_card"
+    - "ssn"
+    - "passport"
+
+# =============================================================================
+# APPROVAL WORKFLOW
+# Configuration for code/file execution approval
+# =============================================================================
+approval_workflow:
+  # Approval method: 'authy_push', 'totp', 'none'
+  method: "authy_push"
+  
+  # Default timeout for approvals (minutes)
+  default_timeout_minutes: 5
+  
+  # Maximum pending approvals per user
+  max_pending_per_user: 3
+  
+  # Persist approvals to database (survive restart)
+  persist_to_database: false
+  
+  # Auto-reject after timeout
+  auto_reject_on_timeout: true
+  
+  # Approval levels
+  approval_levels:
+    low_risk:
+      require_approval: false
+      description: "Safe operations (read-only, whitelisted paths)"
+      
+    medium_risk:
+      require_approval: true
+      timeout_minutes: 5
+      description: "File modifications, code execution"
+      
+    high_risk:
+      require_approval: true
+      timeout_minutes: 10
+      description: "System-level operations, sensitive data access"
+      
+    critical_risk:
+      require_approval: true
+      timeout_minutes: 15
+      requires_admin: true
+      description: "Destructive operations, network access"
+
+# =============================================================================
+# AUDIT LOGGING
+# Security event logging configuration
+# =============================================================================
+audit_logging:
+  enabled: true
+  
+  # Log file location
+  log_file: "${PROJECT_ROOT}/logs/security_audit.log"
+  
+  # Log retention (days)
+  retention_days: 90
+  
+  # Events to log
+  events:
+    file_access: true
+    file_modification: true
+    code_execution: true
+    authentication: true
+    authorization_failure: true
+    dlp_violation: true
+    path_traversal_attempt: true
+    self_modification_attempt: true
+    forbidden_pattern_detected: true
+    approval_requested: true
+    approval_granted: true
+    approval_denied: true
+    
+  # Include full details in logs (may expose sensitive data)
+  include_full_details: false
+  
+  # Hash chain for integrity
+  enable_hash_chain: true
+
+# =============================================================================
+# SERVICE-TO-SERVICE AUTHENTICATION
+# For executor service communication
+# =============================================================================
+service_auth:
+  # Authentication method
+  method: "mtls"  # Options: mTLS, jwt, shared_secret
+  
+  # mTLS configuration
+  mtls:
+    ca_cert: "${PROJECT_ROOT}/certs/ca.crt"
+    server_cert: "${PROJECT_ROOT}/certs/server.crt"
+    server_key: "${PROJECT_ROOT}/certs/server.key"
+    client_cert: "${PROJECT_ROOT}/certs/client.crt"
+    client_key: "${PROJECT_ROOT}/certs/client.key"
+    
+  # JWT configuration (alternative to mTLS)
+  jwt:
+    secret: "${EXECUTOR_JWT_SECRET}"  # Set via environment variable
+    algorithm: "HS256"
+    expiry_minutes: 5
+    
+  # Approval token signing
+  approval_tokens:
+    algorithm: "ES256"  # ECDSA for smaller signatures
+    private_key: "${APPROVAL_PRIVATE_KEY}"
+    public_key: "${APPROVAL_PUBLIC_KEY}"
+
+# =============================================================================
+# ALERTING
+# Security alerts configuration
+# =============================================================================
+alerting:
+  enabled: true
+  
+  # Alert thresholds
+  thresholds:
+    path_traversal_attempts: 3       # Alert after 3 attempts
+    dlp_violations: 1                # Alert on first violation
+    failed_approvals: 3              # Alert after 3 denials
+    self_modification_attempts: 1    # Alert immediately
+    
+  # Alert channels
+  channels:
+    log: true
+    # email: "security@example.com"  # Configure if needed
+    # webhook: "https://hooks.example.com/security"
+    # authy_push: true

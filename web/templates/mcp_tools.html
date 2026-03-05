@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="main-content">
+    <h2>MCP Tools</h2>
+    <div id="tools-content">
+        <p>Loading available tools...</p>
+    </div>
+</div>
+
+<script>
+// Load available tools
+document.addEventListener('DOMContentLoaded', loadTools);
+
+async function loadTools() {
+    try {
+        const response = await fetch('/mcp/tools');
+        if (response.ok) {
+            const data = await response.json();
+            const tools = data.tools || [];
+            
+            if (tools.length === 0) {
+                document.getElementById('tools-content').innerHTML = `
+                    <div class="card">
+                        <h3>No Tools Available</h3>
+                        <p>No MCP tools are currently registered with the system.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let toolsHtml = `
+                <div class="card">
+                    <h3>Available MCP Tools</h3>
+                    <p>Select a tool below to execute it:</p>
+                </div>
+            `;
+            
+            tools.forEach(tool => {
+                toolsHtml += `
+                    <div class="card">
+                        <h3>${tool.name}</h3>
+                        <p>${tool.description || 'No description available'}</p>
+                        <button onclick="executeTool('${tool.name}')">Execute Tool</button>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('tools-content').innerHTML = toolsHtml;
+        } else {
+            document.getElementById('tools-content').innerHTML = '<p>Error loading tools information.</p>';
+        }
+    } catch (error) {
+        document.getElementById('tools-content').innerHTML = `<p>Error: ${error.message}</p>`;
+    }
+}
+
+async function executeTool(toolName) {
+    // For now, just show a simple execution form
+    const formHtml = `
+        <div class="card">
+            <h3>Execute Tool: ${toolName}</h3>
+            <form id="tool-form" onsubmit="runTool(event, '${toolName}')">
+                <div class="form-group">
+                    <label for="arguments">Arguments (JSON format):</label>
+                    <textarea id="arguments" name="arguments" rows="4" placeholder='{"key": "value"}'>{"operation": "add", "a": 5, "b": 3}</textarea>
+                </div>
+                <button type="submit">Run Tool</button>
+                <button type="button" onclick="loadTools()">Cancel</button>
+            </form>
+            <div id="tool-result" style="margin-top: 1rem;"></div>
+        </div>
+    `;
+    
+    document.getElementById('tools-content').innerHTML = formHtml;
+}
+
+async function runTool(event, toolName) {
+    event.preventDefault();
+    
+    const argsTextarea = document.getElementById('arguments');
+    let arguments;
+    
+    try {
+        arguments = JSON.parse(argsTextarea.value);
+    } catch (e) {
+        document.getElementById('tool-result').innerHTML = '<div class="alert alert-error">Invalid JSON in arguments</div>';
+        return;
+    }
+    
+    const submitButton = event.target.querySelector('button[type="submit"]');
+    const originalText = submitButton.textContent;
+    submitButton.textContent = 'Running...';
+    submitButton.disabled = true;
+    
+    try {
+        const response = await fetch(`/mcp/tools/${toolName}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(arguments)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            document.getElementById('tool-result').innerHTML = `
+                <div class="alert alert-success">
+                    <h4>Result:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                </div>
+            `;
+        } else {
+            document.getElementById('tool-result').innerHTML = `
+                <div class="alert alert-error">
+                    <h4>Error:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                </div>
+            `;
+        }
+    } catch (error) {
+        document.getElementById('tool-result').innerHTML = `
+            <div class="alert alert-error">
+                <h4>Network Error:</h4>
+                <p>${error.message}</p>
+            </div>
+        `;
+    } finally {
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
+    }
+}
+
+function logout() {
+    localStorage.removeItem('access_token');
+    window.location.href = '/login';
+}
+</script>
+{% endblock %}

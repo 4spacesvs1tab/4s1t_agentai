@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2 style="color: var(--accent-color);">{{ t('health.title') }}</h2>
+    <div id="health-content">
+        <p style="color: var(--text-muted);">{{ t('health.loading') }}</p>
+    </div>
+</div>
+
+<script>
+const _health_i18n = {
+    component_status: '{{ t("health.component_status") }}',
+    refresh_btn:      '{{ t("health.refresh_btn") }}',
+    error_loading:    '{{ t("health.error_loading") }}',
+    error_prefix:     '{{ t("health.error_prefix") }}',
+};
+
+document.addEventListener('DOMContentLoaded', loadHealth);
+
+async function loadHealth() {
+    try {
+        const response = await window.API.fetch('/api/v1/status');
+        if (response.ok) {
+            const health = await response.json();
+            const rows = Object.entries(health.components || {}).map(([key, value]) => {
+                const ok = value === 'operational';
+                const color = ok ? 'var(--success-color)' : value === 'degraded' ? 'var(--warning-color)' : 'var(--error-color)';
+                return `<tr><td>${key}</td><td style="color:${color}">${value}</td></tr>`;
+            }).join('');
+            document.getElementById('health-content').innerHTML = `
+                <div class="card">
+                    <h3 style="color: var(--accent-color);">${_health_i18n.component_status}</h3>
+                    <table class="table"><tbody>${rows}</tbody></table>
+                </div>
+                <div class="card">
+                    <button onclick="loadHealth()">${_health_i18n.refresh_btn}</button>
+                </div>
+            `;
+        } else {
+            document.getElementById('health-content').innerHTML = `<p style="color:var(--error-color);">${_health_i18n.error_loading}</p>`;
+        }
+    } catch (error) {
+        document.getElementById('health-content').innerHTML = `<p style="color:var(--error-color);">${_health_i18n.error_prefix} ${error.message}</p>`;
+    }
+}
+</script>
+{% endblock %}

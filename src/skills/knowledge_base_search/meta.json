@@ -1,0 +1,54 @@
+{
+  "name": "knowledge_base_search",
+  "version": "1.0.0",
+  "description": "Search the local knowledge base using semantic similarity (ChromaDB RAG). Returns relevant chunks from all indexed content including BABOK, best practices, and user interaction history. Use this before web_search for questions that may have already been researched and indexed.",
+  "agent_scope": ["ba_agent", "data_agent", "research_agent", "synthesis_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 20,
+  "max_memory_mb": 512,
+  "network_allowed": false,
+  "filesystem_access": "read",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "The semantic search query"
+      },
+      "collection": {
+        "type": "string",
+        "description": "ChromaDB collection to search. Use 'babok_v3' for BABOK content, 'best_practices' for general BA practices, or omit to search all available collections.",
+        "default": ""
+      },
+      "limit": {
+        "type": "integer",
+        "description": "Maximum number of chunks to return (1–20). Defaults to 5.",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 20
+      }
+    },
+    "required": ["query"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "chunks": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "text": {"type": "string", "description": "Retrieved text chunk"},
+            "collection": {"type": "string"},
+            "source": {"type": "string", "description": "Source document or identifier"},
+            "distance": {"type": "number", "description": "Similarity distance (lower = more relevant)"}
+          }
+        }
+      },
+      "chunk_count": {"type": "integer"},
+      "collections_searched": {"type": "array", "items": {"type": "string"}}
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "file_write",
+  "version": "1.0.0",
+  "description": "Write text content to a file in the allowed data directory. The path is sandboxed to FILE_READ_BASE_DIR — path traversal is blocked. By default refuses to overwrite existing files. Use for saving final text outputs, notes, or intermediate artefacts.",
+  "agent_scope": ["synthesis_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "read_write",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Relative path of the file to write within the allowed data directory."
+      },
+      "content": {
+        "type": "string",
+        "description": "Text content to write to the file (UTF-8)."
+      },
+      "overwrite": {
+        "type": "boolean",
+        "description": "Allow overwriting an existing file. Defaults to false — fails if file exists.",
+        "default": false
+      },
+      "encoding": {
+        "type": "string",
+        "description": "File encoding. Defaults to utf-8.",
+        "default": "utf-8"
+      }
+    },
+    "required": ["path", "content"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Relative path of the written file."
+      },
+      "size_bytes": {
+        "type": "integer",
+        "description": "Number of bytes written."
+      }
+    }
+  }
+}

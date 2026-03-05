@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('mfa.verify_title') }} - 4S1T Agent AI{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 400px; margin: 2rem auto; text-align: center;">
+    <h2 style="color: var(--accent-color); margin-bottom: 1rem;">{{ t('mfa.verify_title') }}</h2>
+    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+        {{ t('mfa.enter_code') }}
+    </p>
+
+    <form id="mfa-form" action="/auth/verify-2fa" method="post" data-fetch="true">
+        <div class="form-group">
+            <label for="mfa-code" style="display: block; margin-bottom: 0.5rem; color: var(--text-color);">
+                {{ t('mfa.verify_code_label') }}
+            </label>
+            <input
+                type="text"
+                id="mfa-code"
+                name="verification_code"
+                maxlength="6"
+                pattern="[0-9]{6}"
+                required
+                placeholder="******"
+                style="width: 100%; padding: 0.75rem; text-align: center; font-size: 18px; letter-spacing: 0.5rem; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); font-family: var(--font-mono); border-radius: 2px;"
+                autofocus
+            >
+            <small style="color: var(--text-muted); font-size: 0.8rem;">{{ t('mfa.code_hint') }}</small>
+        </div>
+
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <button type="submit" class="btn">{{ t('mfa.verify_submit') }}</button>
+            <button type="button" onclick="logout()" class="btn" style="background: var(--danger-color);">{{ t('mfa.cancel') }}</button>
+        </div>
+    </form>
+</div>
+
+<script>
+const _mfa_i18n = {
+    verifying:     '{{ t("mfa.verifying_short") }}',
+    verify_submit: '{{ t("mfa.verify_submit") }}',
+    invalid_code:  '{{ t("mfa.invalid_code_short") }}',
+    network_error: '{{ t("mfa.network_error_short") }}',
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const token = sessionStorage.getItem('mfa_session_token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+
+    const form = document.getElementById('mfa-form');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const code = document.getElementById('mfa-code').value;
+        const button = form.querySelector('button[type="submit"]');
+        button.textContent = _mfa_i18n.verifying;
+        button.disabled = true;
+
+        fetch('/auth/verify-2fa', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                session_token: token,
+                verification_code: code
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.access_token) {
+                localStorage.setItem('access_token', result.access_token);
+                // HttpOnly cookie is set server-side by /auth/verify-2fa; do not overwrite via JS
+                sessionStorage.removeItem('mfa_session_token');
+                window.location.href = '/dashboard';
+            } else {
+                alert(result.detail || _mfa_i18n.invalid_code);
+                button.textContent = _mfa_i18n.verify_submit;
+                button.disabled = false;
+            }
+        })
+        .catch(error => {
+            alert(_mfa_i18n.network_error + ' ' + error.message);
+            button.textContent = _mfa_i18n.verify_submit;
+            button.disabled = false;
+        });
+    });
+
+    // Auto-submit when 6 digits entered
+    document.getElementById('mfa-code').addEventListener('input', function(e) {
+        e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        if (e.target.value.length === 6) {
+            form.dispatchEvent(new Event('submit'));
+        }
+    });
+});
+
+function logout() {
+    sessionStorage.removeItem('mfa_session_token');
+    localStorage.removeItem('access_token');
+    window.location.href = '/login';
+}
+</script>
+{% endblock %}

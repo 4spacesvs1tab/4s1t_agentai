@@ -1,0 +1,61 @@
+# Nostr NIP-17 Configuration for 4S1T Agent AI
+# Multi-relay support with priority-based failover
+
+nostr_nip17:
+  enabled: true
+  
+  # Private key - loaded from .secrets/agent_nostr.key
+  private_key: file:.secrets/agent_nostr.key
+  
+  # Recipient npub - your Nostr client/WhiteNoise npub
+  # Set this to your personal npub (the account on your phone that receives DMs)
+  # Generate a keypair: see INSTALL.md section 3
+  recipient_npub: npub1YOUR_PERSONAL_NPUB_HERE
+  
+  # Multi-relay configuration with priority-based failover
+  # Agent tries relays in priority order (1 first, then 2, 3, etc.)
+  relays:
+    - url: wss://relay.damus.io
+      priority: 1
+      enabled: true
+      timeout: 15
+      reconnect: true
+    
+    - url: wss://relay.primal.net
+      priority: 2
+      enabled: true
+      timeout: 15
+      reconnect: true
+    
+    - url: wss://nos.lol
+      priority: 3
+      enabled: true
+      timeout: 15
+      reconnect: true
+    
+    - url: wss://nostr.wine
+      priority: 4
+      enabled: true
+      timeout: 15
+      reconnect: true
+    
+    - url: wss://relay.nostr.band
+      priority: 5
+      enabled: true
+      timeout: 15
+      reconnect: true
+  
+  # Timeouts in seconds
+  timeouts:
+    connection: 15
+    message: 15
+  
+  # Auto-connect on client creation
+  auto_connect: true
+  
+  # Security settings
+  security:
+    enforce_local_relay_only: false
+    max_message_size: 10000  # bytes
+    rate_limit_messages_per_minute: 10
+    audit_logging: true

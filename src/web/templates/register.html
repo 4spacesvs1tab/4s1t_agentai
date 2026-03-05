@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 400px; margin: 0 auto;">
+    <h2 style="color: var(--accent-color); text-align: center;">{{ t('register.title') }}</h2>
+
+    {% if error %}
+    <div class="error" style="margin-bottom: 1rem;">
+        $> {{ error }}
+    </div>
+    {% endif %}
+
+    <form id="register-form" method="post" action="/auth/register">
+        <input type="hidden" id="csrf_token" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-group">
+            <label for="username">{{ t('register.username_label') }}</label>
+            <input type="text"
+                   id="username"
+                   name="username"
+                   required
+                   autocomplete="username"
+                   placeholder="{{ t('register.placeholder_username') }}"
+                   maxlength="50">
+        </div>
+
+        <div class="form-group">
+            <label for="password">{{ t('register.password_label') }}</label>
+            <input type="password"
+                   id="password"
+                   name="password"
+                   required
+                   autocomplete="new-password"
+                   placeholder="{{ t('register.placeholder_password') }}"
+                   minlength="6">
+        </div>
+
+        <div class="form-group">
+            <label for="role">{{ t('register.role_label') }}</label>
+            <select id="role" name="role" required>
+                <option value="">{{ t('register.select_role') }}</option>
+                <option value="user">{{ t('register.role_user') }}</option>
+                <option value="analyst">{{ t('register.role_analyst') }}</option>
+                <option value="admin">{{ t('register.role_admin') }}</option>
+            </select>
+        </div>
+
+        <div class="form-group" style="text-align: center;">
+            <button type="submit">
+                {{ t('register.submit') }}
+            </button>
+        </div>
+
+        <div style="text-align: center; margin-top: 1rem;">
+            <a href="/login" style="color: var(--accent-color); font-size: 0.9rem;">
+                {{ t('register.already_have') }}
+            </a>
+        </div>
+    </form>
+
+    <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <p style="color: var(--text-muted); font-size: 0.8rem; text-align: center;">
+            {{ t('register.required') }}
+        </p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('username').focus();
+
+    const form = document.getElementById('register-form');
+    if (form) {
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const csrfToken = document.getElementById('csrf_token')?.value || '';
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken,
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    window.location.href = '/login';
+                } else {
+                    const errorDiv = document.getElementById('error-message') || (() => {
+                        const d = document.createElement('div');
+                        d.id = 'error-message';
+                        d.className = 'error';
+                        form.before(d);
+                        return d;
+                    })();
+                    errorDiv.textContent = '$> ' + (data.detail || '{{ t("register.failed") }}');
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                alert('{{ t("login.network_error") }} ' + err.message);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

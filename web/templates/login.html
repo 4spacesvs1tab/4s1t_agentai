@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-section">
+    <h2>Login to 4S1T Agent AI</h2>
+    <form id="login-form" action="/auth/login" method="post" data-fetch="true">
+        <input type="hidden" id="csrf_token" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+            <small><a href="#" class="toggle-password">Show</a></small>
+        </div>
+        <button type="submit">Login</button>
+    </form>
+    <p>Don't have an account? <a href="/register">Register here</a></p>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle password visibility
+    const togglePassword = document.querySelector('.toggle-password');
+    if (togglePassword) {
+        togglePassword.addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.textContent = type === 'password' ? 'Show' : 'Hide';
+        });
+    }
+    
+    // Form submission with fetch API
+    const form = document.getElementById('login-form');
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            submitButton.textContent = 'Processing...';
+            submitButton.disabled = true;
+            
+            try {
+                const formData = new FormData(this);
+                const data = {};
+                formData.forEach((value, key) => {
+                    if (key !== 'csrf_token') data[key] = value;
+                });
+                const csrfToken = document.getElementById('csrf_token')?.value || '';
+
+                const response = await fetch(this.action, {
+                    method: this.method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken,
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Handle success
+                    if (result.access_token) {
+                        // Store token in localStorage
+                        localStorage.setItem('access_token', result.access_token);
+                        window.location.href = '/dashboard';
+                    } else {
+                        showMessage('Success!', 'success');
+                    }
+                } else {
+                    // Handle error - parse the actual error message
+                    let errorMessage = 'An error occurred';
+                    if (result && typeof result === 'object') {
+                        if (result.detail) {
+                            errorMessage = result.detail;
+                        } else if (result.message) {
+                            errorMessage = result.message;
+                        } else {
+                            errorMessage = JSON.stringify(result);
+                        }
+                    } else if (typeof result === 'string') {
+                        errorMessage = result;
+                    }
+                    showMessage(errorMessage, 'error');
+                }
+            } catch (error) {
+                showMessage('Network error: ' + error.message, 'error');
+            } finally {
+                submitButton.textContent = originalText;
+                submitButton.disabled = false;
+            }
+        });
+    }
+    
+    // Show message function
+    function showMessage(message, type) {
+        // Remove existing alerts
+        const existingAlerts = document.querySelectorAll('.alert');
+        existingAlerts.forEach(alert => alert.remove());
+        
+        // Create new alert
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type}`;
+        alert.textContent = message;
+        
+        // Insert at the top of main content
+        const main = document.querySelector('.auth-section');
+        if (main.firstChild) {
+            main.insertBefore(alert, main.firstChild.nextSibling);
+        } else {
+            main.appendChild(alert);
+        }
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.parentNode.removeChild(alert);
+            }
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}

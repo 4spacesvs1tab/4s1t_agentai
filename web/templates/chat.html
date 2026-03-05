@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="main-content">
+  <div id="chat-messages" class="chat-messages"></div>
+  
+  <!-- PROMPT INPUT (auto-expands) -->
+  <textarea id="prompt-input" placeholder="Type your message..."></textarea>
+  
+  <!-- FILTERS (single row BELOW prompt) -->
+  <div class="filter-bar">
+    <div class="filter-dropdown" data-target="model-filter">Model ▼</div>
+    <div class="filter-dropdown" data-target="type-filter">Type ▼</div>
+    <div class="filter-dropdown" data-target="category-filter">Category ▼</div>
+    <div class="filter-dropdown" data-target="subscription-filter">Subscription ▼</div>
+  </div>
+  
+  <!-- Model Filter Dropdown -->
+  <div id="model-filter-dropdown" class="filter-dropdown-menu" style="display: none;"></div>
+</div>
+
+<script>
+// Initialize chat functionality
+document.addEventListener('DOMContentLoaded', function() {
+  // Load initial chat messages
+  loadChatMessages();
+  
+  // Setup prompt input auto-expansion
+  setupAutoExpand();
+  
+  // Setup model filter
+  initModelFilter();
+});
+
+function loadChatMessages() {
+  // Placeholder for chat message loading
+  document.getElementById('chat-messages').innerHTML = `
+    <div class="message system-message">
+      <div class="message-content">Welcome to 4S1T Agent AI Chat</div>
+      <div class="message-time">${new Date().toLocaleTimeString()}</div>
+    </div>
+  `;
+}
+
+function setupAutoExpand() {
+  const promptInput = document.getElementById('prompt-input');
+  
+  function autoExpand() {
+    promptInput.style.height = 'auto';
+    const maxHeight = window.innerHeight * 0.2;
+    const newHeight = Math.min(promptInput.scrollHeight, maxHeight);
+    promptInput.style.height = `${newHeight}px`;
+  }
+  
+  promptInput.addEventListener('input', autoExpand);
+  window.addEventListener('resize', autoExpand);
+  
+  // Initial expansion
+  setTimeout(autoExpand, 100);
+}
+
+function initModelFilter() {
+  const filterBtn = document.querySelector('.filter-dropdown[data-target="model-filter"]');
+  const dropdown = document.getElementById('model-filter-dropdown');
+
+  filterBtn.addEventListener('click', (e) => {
+    // Position ABOVE the filter bar (since it's at bottom)
+    const rect = e.target.getBoundingClientRect();
+    dropdown.style.bottom = `${window.innerHeight - rect.top + 10}px`;
+    dropdown.style.left = `${rect.left}px`;
+    dropdown.style.display = 'block';
+
+    // Build dropdown content
+    dropdown.innerHTML = `
+      <input type="text" class="filter-search" placeholder="Search models..." autofocus>
+      <div class="model-list"></div>
+    `;
+
+    // Populate model list
+    fetchModels();
+
+    // Setup search
+    const searchInput = dropdown.querySelector('.filter-search');
+    searchInput.addEventListener('input', debounce(fetchModels, 300));
+  });
+
+  // Click outside closes dropdown
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target) && e.target !== filterBtn) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function fetchModels() {
+  const search = document.querySelector('.filter-search')?.value || '';
+  const modelList = document.querySelector('.model-list');
+  
+  // Mock data for demonstration
+  const mockModels = [
+    { model_id: 'glm-4-6-chat', name: 'GLM-4-6 Chat', category: 'Text' },
+    { model_id: 'nano-gpt-3.5-turbo', name: 'Nano GPT-3.5 Turbo', category: 'Text' },
+    { model_id: 'nano-gpt-4', name: 'Nano GPT-4', category: 'Text' },
+    { model_id: 'nano-gpt-vision', name: 'Nano GPT Vision', category: 'Image' }
+  ];
+  
+  // Filter models based on search
+  const filteredModels = mockModels.filter(model => 
+    model.name.toLowerCase().includes(search.toLowerCase()) ||
+    model.model_id.toLowerCase().includes(search.toLowerCase())
+  );
+  
+  modelList.innerHTML = filteredModels
+    .map(model => `
+      <div class="model-item" data-model="${model.model_id}">
+        ${model.name} <span class="model-category">(${model.category})</span>
+      </div>
+    `)
+    .join('');
+
+  // Select model on click
+  document.querySelectorAll('.model-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelector('.filter-dropdown[data-target="model-filter"]').textContent = 
+        item.textContent.split(' (')[0] + ' ▼';
+      dropdown.style.display = 'none';
+    });
+  });
+}
+
+function debounce(func, delay) {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), delay);
+  };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{
+  "name": "babok_lookup",
+  "version": "1.0.0",
+  "description": "Search the BABOK v3 knowledge base using semantic similarity. Returns relevant sections, guidance, and source references for the given business analysis topic or question. Use before answering any BABOK methodology questions.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 20,
+  "max_memory_mb": 512,
+  "network_allowed": false,
+  "filesystem_access": "read",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Business analysis topic or question to look up in BABOK v3"
+      },
+      "max_sections": {
+        "type": "integer",
+        "description": "Maximum number of BABOK sections to return (1–10). Defaults to 3.",
+        "default": 3,
+        "minimum": 1,
+        "maximum": 10
+      }
+    },
+    "required": ["query"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "sections": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "text": {"type": "string"},
+            "chapter": {"type": "string"},
+            "section": {"type": "string"},
+            "relevance_score": {"type": "number"}
+          }
+        }
+      },
+      "source_references": {
+        "type": "array",
+        "items": {"type": "string"}
+      },
+      "section_count": {"type": "integer"}
+    }
+  }
+}

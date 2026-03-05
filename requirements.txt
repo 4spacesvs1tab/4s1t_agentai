@@ -1,0 +1,84 @@
+# ===========================================================================
+# 4S1T Agent AI — Runtime Dependencies
+# Security-critical packages are pinned to exact versions (==).
+# Packages with complex transitive dependency trees use compatible-release (~=).
+# Run `pip-audit --local` after `pip install -r requirements.txt` to audit.
+#
+# Hardware note — target: Core2Duo P8400 (Penryn), x86_64, SSE4.1, no SSE4.2.
+#   numpy: pinned <2.0 — numpy 2.x requires SSE4.2 → illegal instruction on target
+#   chromadb/hnswlib: optional, excluded from base image for same reason
+#   cryptography: 46.0.3 confirmed working on Core2Duo (manylinux wheel, OpenSSL
+#     does runtime CPU feature detection — no SSE4.2 or AES-NI required)
+# ===========================================================================
+
+# Core web framework
+# fastapi 0.124+ brings starlette 0.50+ (fixes CVE-2025-54121, CVE-2025-62727)
+# Confirmed working on remote: fastapi 0.124.4 + starlette 0.50.0
+fastapi~=0.124.0
+uvicorn[standard]~=0.34.0
+python-multipart~=0.0.20   # FastAPI form data (login, file uploads)
+jinja2~=3.1                 # FastAPI Jinja2Templates for HTML responses
+pydantic~=2.11.0
+pydantic-settings~=2.8.0
+
+# Database
+# chromadb + hnswlib are OPTIONAL — required only for vector search / BABOK lookup.
+# They pull numpy as a build dep; numpy 2.x requires SSE4.2 (missing on some CPUs).
+# Install manually if needed: pip install "chromadb>=0.4.0,<1.0.0" hnswlib
+# Vector database features degrade gracefully when these are absent.
+# sqlite3 is built into Python standard library
+
+# Security — pinned to exact versions to prevent supply-chain drift
+argon2-cffi==25.1.0
+# cryptography: 46.0.3 fixes PYSEC chain from jose; 46.0.5 adds SECT subgroup check
+# (CVE-2026-26007 affects SECT curves only; we use secp256k1/P-256 — risk is informational)
+# Using 46.0.3 — confirmed working on Core2Duo P8400 (system has it, service is healthy)
+cryptography==46.0.3
+# python-jose 3.5.0 fixes PYSEC-2024-232 (algorithm confusion) + PYSEC-2024-233 (JWT bomb)
+# ecdsa transitive dep (CVE-2024-23342 Minerva attack) has no upstream fix; our JWT uses
+# HS256 (HMAC), not ECDSA — ecdsa is not exercised in our signing/verification paths
+python-jose[cryptography]==3.5.0
+# CSRF token generation (P3-5) — URLSafeTimedSerializer for double-submit tokens
+itsdangerous~=2.2
+PyJWT~=2.9                  # bare 'import jwt' usage in web_routes.py
+passlib==1.7.4
+pyotp==2.9.0
+qrcode==8.0
+
+# AI/ML dependencies
+openai==1.84.0          # required by core/api_client.py → Nano-GPT
+aiohttp~=3.10           # used by src/ai/models/nano_gpt.py, nano_gpt_api.py
+numpy~=1.26             # pinned <2.0 — numpy 2.x requires SSE4.2 (not on Core2Duo P8400)
+# pandas>=2.1.0
+
+# Skills Framework dependencies
+duckduckgo-search~=7.5  # web_search skill — no API key required
+openpyxl~=3.1.5         # data_read skill — Excel file parsing
+matplotlib~=3.9         # chart_generate skill — PNG chart generation (Agg backend, no SSE4.2)
+
+# Utilities
+python-dotenv==1.1.0
+pyyaml==6.0.2
+requests~=2.32          # used by src/services/authy_service.py
+redis==5.2.1
+psutil==7.0.0
+cachetools==5.5.2
+
+# Testing
+pytest==8.3.5
+pytest-cov==6.1.0
+pytest-asyncio==0.25.3
+httpx[socks]==0.28.1
+socksio~=1.0        # httpx[socks] SOCKS5 transport — required for Tor proxy routing
+
+# Development tools
+black==25.1.0
+flake8==7.2.0
+mypy==1.15.0
+
+# Security audit (used in CI)
+pip-audit==2.9.0
+
+# Nostr / NIP-17
+nostr-sdk>=0.44.0
+websockets~=14.2

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4S1T Agent AI</title>
+    <link rel="stylesheet" href="/web/static/css/main.css">
+    <link rel="stylesheet" href="/web/static/css/sidebar.css">
+    <link rel="stylesheet" href="/web/static/css/chat.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% include "sidebar.html" %}
+    
+    <div class="main-wrapper">
+        {% block content %}{% endblock %}
+    </div>
+    
+    <script src="/web/static/js/textarea.js"></script>
+    <script src="/web/static/js/model-filter.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

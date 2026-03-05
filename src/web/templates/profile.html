@@ -1,0 +1,569 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2 style="color: var(--accent-color);">{{ t('profile.title') }}</h2>
+    <p style="color: var(--text-muted);">{{ t('profile.subtitle') }}</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 2rem;">
+    <!-- Current Profile -->
+    <div class="card">
+        <h3 style="color: var(--accent-color);">{{ t('profile.current_profile') }}</h3>
+
+        <table class="table">
+            <tbody>
+                <tr>
+                    <td>{{ t('profile.user_id') }}</td>
+                    <td><code>{{ user.id }}</code></td>
+                </tr>
+                <tr>
+                    <td>{{ t('profile.role') }}</td>
+                    <td><span style="color: var(--accent-color);">{{ user.role }}</span></td>
+                </tr>
+                <tr>
+                    <td>{{ t('profile.account_created') }}</td>
+                    <td>{{ user.created_at if user.created_at else t('profile.unknown') }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Update Password -->
+    <div class="card">
+        <h3 style="color: var(--accent-color);">{{ t('profile.update_password') }}</h3>
+
+        {% if message %}
+        <div class="{% if success %}success{% else %}error{% endif %}" style="margin-bottom: 1rem;">
+            $> {{ message }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="/profile">
+            <div class="form-group">
+                <label for="current_password">{{ t('profile.current_password') }}</label>
+                <input type="password"
+                       id="current_password"
+                       name="current_password"
+                       placeholder="{{ t('profile.placeholder_current') }}">
+            </div>
+
+            <div class="form-group">
+                <label for="new_password">{{ t('profile.new_password') }}</label>
+                <input type="password"
+                       id="new_password"
+                       name="new_password"
+                       placeholder="{{ t('profile.placeholder_new') }}"
+                       minlength="6">
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">{{ t('profile.confirm_password') }}</label>
+                <input type="password"
+                       id="confirm_password"
+                       name="confirm_password"
+                       placeholder="{{ t('profile.placeholder_confirm') }}"
+                       minlength="6">
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit">
+                    {{ t('profile.submit_password') }}
+                </button>
+                <button type="button" onclick="location.href='/dashboard'" class="btn">
+                    {{ t('profile.cancel') }}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Theme Selection -->
+    <div class="card">
+        <h3 style="color: var(--accent-color);">{{ t('profile.theme_title') }}</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">{{ t('profile.theme_hint') }}</p>
+
+        {% if theme_message %}
+        <div class="{% if theme_success %}success{% else %}error{% endif %}" style="margin-bottom: 1rem;">
+            $> {{ theme_message }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="/profile/theme">
+            <div class="form-group">
+                <label for="theme_select">{{ t('profile.theme_select') }}</label>
+                <select id="theme_select" name="theme_preference">
+                    <option value="terminal" {% if user.theme_preference == 'terminal' or not user.theme_preference %}selected{% endif %}>
+                        {{ t('profile.theme_terminal') }}
+                    </option>
+                    <option value="dark_grey_technical" {% if user.theme_preference == 'dark_grey_technical' %}selected{% endif %}>
+                        {{ t('profile.theme_dark') }}
+                    </option>
+                    <option value="teal_modern" {% if user.theme_preference == 'teal_modern' %}selected{% endif %}>
+                        {{ t('profile.theme_teal') }}
+                    </option>
+                    <option value="blue_professional" {% if user.theme_preference == 'blue_professional' %}selected{% endif %}>
+                        {{ t('profile.theme_blue') }}
+                    </option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit">
+                    {{ t('profile.theme_apply') }}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Language Selection -->
+    <div class="card">
+        <h3 style="color: var(--accent-color);">{{ t('profile.language_title') }}</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">{{ t('profile.language_hint') }}</p>
+
+        <form method="post" action="/profile/language">
+            <div class="form-group">
+                <label for="language_select">{{ t('profile.language_select') }}</label>
+                <select id="language_select" name="language_preference">
+                    {% for code, display in languages.items() %}
+                    <option value="{{ code }}" {% if (user.language_preference or 'en') == code %}selected{% endif %}>
+                        {{ display }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit">
+                    {{ t('profile.language_apply') }}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Privacy: PII Scrubbing -->
+    <div class="card">
+        <h3 style="color: var(--accent-color);">Privacy — PII Scrubbing</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">
+            When enabled, known personal identifiers (PESEL, NIP, IBAN, email, phone, etc.)
+            are detected and replaced with placeholders before your prompts are sent to the
+            LLM provider. The provider never sees the actual values.<br>
+            Even when disabled, Tier-1 identifiers (PESEL, NIP, IBAN, credit card) always
+            trigger a NIP-17 alert asking how to proceed.
+        </p>
+
+        <form method="post" action="/profile/pii-scrubbing">
+            <div class="form-group" style="display: flex; align-items: center; gap: 0.75rem;">
+                <input
+                    type="checkbox"
+                    id="pii_scrubbing_toggle"
+                    name="pii_scrubbing_enabled"
+                    value="on"
+                    {% if user.pii_scrubbing_enabled %}checked{% endif %}
+                    style="width: 1.1rem; height: 1.1rem; cursor: pointer;"
+                >
+                <label for="pii_scrubbing_toggle" style="cursor: pointer; user-select: none;">
+                    Automatically scrub PII from prompts before sending to LLM provider
+                </label>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit">Save privacy setting</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- AI Preferences -->
+<div class="card" style="margin-top: 2rem;">
+    <h2 style="color: var(--accent-color); margin-bottom: 0.5rem;">{{ t('profile.ai_prefs_title') }}</h2>
+    <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 12px;">
+        {{ t('profile.ai_prefs_hint') }}
+    </p>
+    <div id="ai-prefs-status" style="margin-bottom: 1rem; font-size: 12px;"></div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem;">
+        <!-- WebUI card -->
+        <div class="card" id="pref-card-webui">
+            <h3 style="color: var(--accent-color); margin-bottom: 1rem;">{{ t('profile.webui_chat') }}</h3>
+            <div class="form-group">
+                <label style="font-size:11px;">{{ t('profile.provider_label') }}</label>
+                <select id="pref-provider-webui" onchange="loadModelsForRoute('webui')">
+                    <option value="">{{ t('profile.system_default') }}</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label style="font-size:11px;">{{ t('profile.model_label') }} <small style="color:var(--text-muted);">{{ t('profile.model_filter_hint') }}</small></label>
+                <input type="text" id="pref-model-filter-webui" placeholder="{{ t('profile.filter_placeholder') }}" oninput="filterModels('webui')" style="margin-bottom:0.25rem;">
+                <select id="pref-model-webui" size="5" style="width:100%; font-size:11px; background:var(--bg-color); color:var(--text-color); border:1px solid var(--border-color); border-radius:4px;"></select>
+            </div>
+            <button type="button" onclick="savePref('webui')" class="btn" style="width:100%; margin-top:0.5rem; font-size:11px;">{{ t('profile.save_webui') }}</button>
+        </div>
+
+        <!-- NIP17 card -->
+        <div class="card" id="pref-card-nip17">
+            <h3 style="color: var(--accent-color); margin-bottom: 1rem;">{{ t('profile.nostr_nip17') }}</h3>
+            <div class="form-group">
+                <label style="font-size:11px;">{{ t('profile.provider_label') }}</label>
+                <select id="pref-provider-nip17" onchange="loadModelsForRoute('nip17')">
+                    <option value="">{{ t('profile.system_default') }}</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label style="font-size:11px;">{{ t('profile.model_label') }} <small style="color:var(--text-muted);">{{ t('profile.model_filter_hint') }}</small></label>
+                <input type="text" id="pref-model-filter-nip17" placeholder="{{ t('profile.filter_placeholder') }}" oninput="filterModels('nip17')" style="margin-bottom:0.25rem;">
+                <select id="pref-model-nip17" size="5" style="width:100%; font-size:11px; background:var(--bg-color); color:var(--text-color); border:1px solid var(--border-color); border-radius:4px;"></select>
+            </div>
+            <button type="button" onclick="savePref('nip17')" class="btn" style="width:100%; margin-top:0.5rem; font-size:11px;">{{ t('profile.save_nip17') }}</button>
+        </div>
+
+        <!-- API Default card -->
+        <div class="card" id="pref-card-api">
+            <h3 style="color: var(--accent-color); margin-bottom: 1rem;">{{ t('profile.api_default') }}</h3>
+            <div class="form-group">
+                <label style="font-size:11px;">{{ t('profile.provider_label') }}</label>
+                <select id="pref-provider-api" onchange="loadModelsForRoute('api')">
+                    <option value="">{{ t('profile.system_default') }}</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label style="font-size:11px;">{{ t('profile.model_label') }} <small style="color:var(--text-muted);">{{ t('profile.model_filter_hint') }}</small></label>
+                <input type="text" id="pref-model-filter-api" placeholder="{{ t('profile.filter_placeholder') }}" oninput="filterModels('api')" style="margin-bottom:0.25rem;">
+                <select id="pref-model-api" size="5" style="width:100%; font-size:11px; background:var(--bg-color); color:var(--text-color); border:1px solid var(--border-color); border-radius:4px;"></select>
+            </div>
+            <button type="button" onclick="savePref('api')" class="btn" style="width:100%; margin-top:0.5rem; font-size:11px;">{{ t('profile.save_api') }}</button>
+        </div>
+    </div>
+
+    <!-- Favourites -->
+    <div style="margin-top: 1.5rem;">
+        <h3 style="color: var(--accent-color); margin-bottom: 0.75rem;">{{ t('profile.favourites_title') }}</h3>
+        <div id="favourites-list" style="font-size:12px; color:var(--text-muted);">{{ t('profile.loading') }}</div>
+    </div>
+</div>
+
+<!-- Trusted Nostr Contacts -->
+<div class="card" style="margin-top: 2rem;">
+    <h2 style="color: var(--accent-color); margin-bottom: 0.5rem;">{{ t('profile.nostr_contacts_title') }}</h2>
+    <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 12px;">
+        {{ t('profile.nostr_contacts_hint') }}
+    </p>
+    <div id="nostr-contacts-status" style="margin-bottom: 0.75rem; font-size: 12px;"></div>
+
+    <!-- Add contact form -->
+    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+        <input type="text" id="nostr-add-npub" placeholder="{{ t('profile.add_npub_placeholder') }}" style="flex:1; min-width:200px; font-size:12px;">
+        <input type="text" id="nostr-add-name" placeholder="{{ t('profile.add_name_placeholder') }}" style="width:130px; font-size:12px;">
+        <button type="button" onclick="addNostrContact()" class="btn" style="font-size:11px;">{{ t('profile.add_trusted_btn') }}</button>
+    </div>
+
+    <!-- Contact list -->
+    <div id="nostr-contacts-list" style="font-size:12px; color:var(--text-muted);">{{ t('profile.loading') }}</div>
+</div>
+
+<script>
+// i18n strings for JavaScript
+const _p_i18n = {
+    loading:              '{{ t("profile.loading") }}',
+    no_model:             '{{ t("profile.no_model") }}',
+    select_provider:      '{{ t("profile.select_provider_first") }}',
+    pref_saved:           '{{ t("profile.pref_saved") }}',
+    pref_save_error:      '{{ t("profile.pref_save_error") }}',
+    error_loading_prefs:  '{{ t("profile.error_loading_prefs") }}',
+    no_favourites:        '{{ t("profile.no_favourites") }}',
+    nostr_col_npub:       '{{ t("profile.nostr_col_npub") }}',
+    nostr_col_name:       '{{ t("profile.nostr_col_name") }}',
+    nostr_col_status:     '{{ t("profile.nostr_col_status") }}',
+    nostr_col_actions:    '{{ t("profile.nostr_col_actions") }}',
+    nostr_blocked:        '{{ t("profile.nostr_status_blocked") }}',
+    nostr_trusted:        '{{ t("profile.nostr_status_trusted") }}',
+    nostr_untrusted:      '{{ t("profile.nostr_status_untrusted") }}',
+    nostr_block_btn:      '{{ t("profile.nostr_btn_block") }}',
+    nostr_remove_btn:     '{{ t("profile.nostr_btn_remove") }}',
+    nostr_no_contacts:    '{{ t("profile.nostr_no_contacts") }}',
+    nostr_npub_required:  '{{ t("profile.nostr_npub_required") }}',
+    nostr_added:          '{{ t("profile.nostr_contact_added") }}',
+    nostr_removed:        '{{ t("profile.nostr_contact_removed") }}',
+    nostr_blocked_msg:    '{{ t("profile.nostr_contact_blocked") }}',
+    failed_load_contacts: '{{ t("profile.failed_load_contacts") }}',
+};
+
+// route -> [{id, display}]
+const _routeModels = { webui: [], nip17: [], api: [] };
+
+async function loadAiPreferences() {
+    const status = document.getElementById('ai-prefs-status');
+    try {
+        // Load providers
+        const provResp = await fetch('/api/v1/providers', { credentials: 'include',
+            headers: { 'Authorization': 'Bearer ' + (getCookieToken() || '') } });
+        if (provResp.ok) {
+            const provData = await provResp.json();
+            for (const route of ['webui', 'nip17', 'api']) {
+                const sel = document.getElementById(`pref-provider-${route}`);
+                // keep the default option
+                provData.providers.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.name;
+                    opt.textContent = p.display_name;
+                    sel.appendChild(opt);
+                });
+            }
+        }
+
+        // Load current preferences
+        const prefResp = await fetch('/api/v1/user/preferences', { credentials: 'include' });
+        if (prefResp.ok) {
+            const prefData = await prefResp.json();
+            for (const route of ['webui', 'nip17', 'api']) {
+                const pref = prefData.preferences && prefData.preferences[route];
+                if (pref) {
+                    const provSel = document.getElementById(`pref-provider-${route}`);
+                    if (pref.provider_name) provSel.value = pref.provider_name;
+                    // Load models for this provider then select saved model
+                    await loadModelsForRoute(route, pref.model_id);
+                }
+            }
+            renderFavourites(prefData.favourites || []);
+        }
+    } catch (e) {
+        status.textContent = `${_p_i18n.error_loading_prefs} ${e.message}`;
+        status.style.color = 'var(--error-color)';
+    }
+}
+
+async function loadModelsForRoute(route, preselectModelId) {
+    const provSel = document.getElementById(`pref-provider-${route}`);
+    const modelSel = document.getElementById(`pref-model-${route}`);
+    const providerName = provSel.value;
+
+    modelSel.innerHTML = `<option value="">${_p_i18n.loading}</option>`;
+
+    if (!providerName) {
+        modelSel.innerHTML = `<option value="">${_p_i18n.select_provider}</option>`;
+        _routeModels[route] = [];
+        return;
+    }
+
+    try {
+        const token = getCookieToken() || '';
+        const resp = await fetch(`/api/v1/providers/${encodeURIComponent(providerName)}/models`,
+            { credentials: 'include', headers: { 'Authorization': 'Bearer ' + token } });
+        if (!resp.ok) {
+            modelSel.innerHTML = `<option value="">${_p_i18n.error_loading_prefs}</option>`;
+            return;
+        }
+        const data = await resp.json();
+        _routeModels[route] = data.models || [];
+        renderModelOptions(route, preselectModelId || null);
+    } catch (e) {
+        modelSel.innerHTML = `<option value="">${_p_i18n.error_loading_prefs}</option>`;
+    }
+}
+
+function renderModelOptions(route, preselectId, filter) {
+    const modelSel = document.getElementById(`pref-model-${route}`);
+    let models = _routeModels[route] || [];
+    if (filter) {
+        const fl = filter.toLowerCase();
+        models = models.filter(m => (m.id || '').toLowerCase().includes(fl));
+    }
+    modelSel.innerHTML = `<option value="">${_p_i18n.no_model}</option>`;
+    models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.id;
+        if (preselectId && m.id === preselectId) opt.selected = true;
+        modelSel.appendChild(opt);
+    });
+}
+
+function filterModels(route) {
+    const filter = document.getElementById(`pref-model-filter-${route}`).value;
+    const currentSelected = document.getElementById(`pref-model-${route}`).value;
+    renderModelOptions(route, currentSelected, filter);
+}
+
+async function savePref(route) {
+    const provSel = document.getElementById(`pref-provider-${route}`);
+    const modelSel = document.getElementById(`pref-model-${route}`);
+    const status = document.getElementById('ai-prefs-status');
+
+    const payload = {
+        preferences: {
+            [route]: {
+                provider_name: provSel.value || null,
+                model_id: modelSel.value || null
+            }
+        }
+    };
+
+    try {
+        const resp = await fetch('/api/v1/user/preferences', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (resp.ok) {
+            status.textContent = `✓ ${route} ${_p_i18n.pref_saved}`;
+            status.style.color = 'var(--success-color)';
+        } else {
+            const err = await resp.json();
+            status.textContent = `Error: ${err.detail || _p_i18n.pref_save_error}`;
+            status.style.color = 'var(--error-color)';
+        }
+    } catch (e) {
+        status.textContent = `Error: ${e.message}`;
+        status.style.color = 'var(--error-color)';
+    }
+    setTimeout(() => { status.textContent = ''; }, 4000);
+}
+
+function renderFavourites(favs) {
+    const container = document.getElementById('favourites-list');
+    if (!favs.length) {
+        container.textContent = _p_i18n.no_favourites;
+        return;
+    }
+    container.innerHTML = favs.map(f =>
+        `<span style="display:inline-flex;align-items:center;gap:0.25rem;margin:0.25rem;padding:0.2rem 0.5rem;
+                      border:1px solid var(--border-color);border-radius:12px;">
+            ${escapeHtmlProfile(f.provider_name + ' / ' + f.model_id)}
+            <button onclick="removeFavourite('${escapeHtmlProfile(f.provider_name)}','${escapeHtmlProfile(f.model_id)}')"
+                    style="background:none;border:none;color:var(--error-color);cursor:pointer;padding:0;font-size:10px;">✕</button>
+        </span>`
+    ).join('');
+}
+
+async function removeFavourite(provider, modelId) {
+    try {
+        await fetch(`/api/v1/user/favourites/${encodeURIComponent(provider)}/${encodeURIComponent(modelId)}`,
+            { method: 'DELETE', credentials: 'include' });
+        const prefResp = await fetch('/api/v1/user/preferences', { credentials: 'include' });
+        if (prefResp.ok) {
+            const data = await prefResp.json();
+            renderFavourites(data.favourites || []);
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function getCookieToken() {
+    const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
+function escapeHtmlProfile(s) {
+    return String(s).replace(/[&<>"']/g, m =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;'}[m]));
+}
+
+// ---------------------------------------------------------------------------
+// Trusted Nostr Contacts
+// ---------------------------------------------------------------------------
+
+async function loadNostrContacts() {
+    const container = document.getElementById('nostr-contacts-list');
+    try {
+        const resp = await fetch('/api/v1/nostr/contacts', {
+            credentials: 'include',
+            headers: { 'Authorization': 'Bearer ' + (getCookieToken() || '') },
+        });
+        if (!resp.ok) { container.textContent = _p_i18n.failed_load_contacts; return; }
+        const data = await resp.json();
+        renderNostrContacts(data.contacts || []);
+    } catch (e) {
+        container.textContent = `Error: ${e.message}`;
+    }
+}
+
+function renderNostrContacts(contacts) {
+    const container = document.getElementById('nostr-contacts-list');
+    if (!contacts.length) {
+        container.textContent = _p_i18n.nostr_no_contacts;
+        return;
+    }
+    container.innerHTML = `
+        <table class="table" style="font-size:11px;">
+            <thead><tr>
+                <th>${_p_i18n.nostr_col_npub}</th>
+                <th>${_p_i18n.nostr_col_name}</th>
+                <th>${_p_i18n.nostr_col_status}</th>
+                <th>${_p_i18n.nostr_col_actions}</th>
+            </tr></thead>
+            <tbody>
+                ${contacts.map(c => `
+                <tr>
+                    <td style="font-family:monospace; word-break:break-all;">${escapeHtmlProfile(c.npub)}</td>
+                    <td>${escapeHtmlProfile(c.name || '')}</td>
+                    <td style="color:${c.is_blocked ? 'var(--error-color)' : (c.is_trusted ? 'var(--success-color)' : 'var(--text-muted)')}">${c.is_blocked ? _p_i18n.nostr_blocked : (c.is_trusted ? _p_i18n.nostr_trusted : _p_i18n.nostr_untrusted)}</td>
+                    <td style="white-space:nowrap;">
+                        ${!c.is_blocked ? `<button onclick="blockNostrContact('${escapeHtmlProfile(c.npub)}')" class="btn" style="font-size:10px;padding:2px 6px;margin-right:4px;">${_p_i18n.nostr_block_btn}</button>` : ''}
+                        <button onclick="removeNostrContact('${escapeHtmlProfile(c.npub)}')" class="btn" style="font-size:10px;padding:2px 6px;color:var(--error-color);">${_p_i18n.nostr_remove_btn}</button>
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`;
+}
+
+function setNostrStatus(msg, isError) {
+    const el = document.getElementById('nostr-contacts-status');
+    el.textContent = msg;
+    el.style.color = isError ? 'var(--error-color)' : 'var(--success-color)';
+    setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+async function addNostrContact() {
+    const npub = document.getElementById('nostr-add-npub').value.trim();
+    const name = document.getElementById('nostr-add-name').value.trim();
+    if (!npub) { setNostrStatus(_p_i18n.nostr_npub_required, true); return; }
+    try {
+        const resp = await fetch('/api/v1/nostr/contacts', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + (getCookieToken() || ''),
+            },
+            body: JSON.stringify({ npub, name: name || null }),
+        });
+        if (!resp.ok) {
+            const err = await resp.json();
+            setNostrStatus(`Error: ${err.detail || _p_i18n.pref_save_error}`, true);
+            return;
+        }
+        document.getElementById('nostr-add-npub').value = '';
+        document.getElementById('nostr-add-name').value = '';
+        setNostrStatus(_p_i18n.nostr_added, false);
+        await loadNostrContacts();
+    } catch (e) { setNostrStatus(`Error: ${e.message}`, true); }
+}
+
+async function removeNostrContact(npub) {
+    try {
+        await fetch(`/api/v1/nostr/contacts/${encodeURIComponent(npub)}`, {
+            method: 'DELETE',
+            credentials: 'include',
+            headers: { 'Authorization': 'Bearer ' + (getCookieToken() || '') },
+        });
+        setNostrStatus(_p_i18n.nostr_removed, false);
+        await loadNostrContacts();
+    } catch (e) { setNostrStatus(`Error: ${e.message}`, true); }
+}
+
+async function blockNostrContact(npub) {
+    try {
+        const resp = await fetch(`/api/v1/nostr/contacts/${encodeURIComponent(npub)}/block`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Authorization': 'Bearer ' + (getCookieToken() || '') },
+        });
+        if (resp.ok) { setNostrStatus(_p_i18n.nostr_blocked_msg, false); await loadNostrContacts(); }
+    } catch (e) { setNostrStatus(`Error: ${e.message}`, true); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadAiPreferences();
+    loadNostrContacts();
+});
+</script>
+{% endblock %}

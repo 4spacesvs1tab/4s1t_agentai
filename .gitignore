@@ -1,0 +1,210 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak
+venv.bak
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+4s1t_agent.db
+4s1t_agent.db-shm
+4s1t_agent.db-wal
+*.db-shm
+*.db-wal
+*.log
+
+# Temporary deployment packages
+4s1t_agent_ai_deployment.tar.gz
+4s1t_agentai_chat_deploy.tar.gz
+4s1t_agentai_fix_deploy.tar.gz
+4s1t_agentai_fixed*.tar.gz
+
+# Patch files
+fix_mcp_chat_endpoint.patch
+
+# Database backups
+src/4s1t_agent.db.backup
+
+# Remote comparison files
+src/services/auth_service.py.remote
+
+# Goose hints
+.goosehints
+
+# Documentation test cases
+docs/requirements/4s1t_agent_testCases.rtf
+
+# Demo/test files
+demo.py
+
+# Deployment packages
+deploy_package/*.tar.gz
+
+# Chroma database
+chroma/
+
+# Runtime data directories — keep the dirs (via .gitkeep) but ignore content
+data/*
+!data/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# ── LOCAL-ONLY — never push to GitHub ──────────────────────────────────────
+# These paths stay in your local git history but are excluded from every
+# clean release (make-release.sh strips them from the orphan branch).
+
+# Cryptographic keys and secrets
+.secrets/
+certs/approval-private.pem
+certs/approval-public.pem
+
+# AI agent memory (contains infrastructure IPs and deployment notes)
+.goose/
+
+# Local dev tool settings (contains absolute paths with your username)
+.claude/
+
+# Development archive (deployment history, old scripts, test runs)
+01_archive/
+
+# Editor backup and temporary files
+*.backup
+*.backup.*
+*.bak
+
+# Test databases
+src/test.db
+src/test.db-shm
+src/test.db-wal
+# ───────────────────────────────────────────────────────────────────────────

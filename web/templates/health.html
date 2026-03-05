@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="main-content">
+    <h2>System Health</h2>
+    <div id="health-content">
+        <p>Loading system health information...</p>
+    </div>
+</div>
+
+<script>
+// Load health information
+document.addEventListener('DOMContentLoaded', loadHealth);
+
+async function loadHealth() {
+    try {
+        const response = await fetch('/health');
+        if (response.ok) {
+            const health = await response.json();
+            document.getElementById('health-content').innerHTML = `
+                <div class="card">
+                    <h3>System Status</h3>
+                    <p><strong>Status:</strong> <span style="color: ${health.status === 'healthy' ? '#6a9955' : '#f48771'}">${health.status}</span></p>
+                    <p><strong>Components:</strong></p>
+                    <ul>
+                        ${Object.entries(health.components || {}).map(([key, value]) => 
+                            `<li>${key}: <span style="color: ${value === 'operational' ? '#6a9955' : '#f48771'}">${value}</span></li>`
+                        ).join('')}
+                    </ul>
+                </div>
+                
+                <div class="card">
+                    <h3>Actions</h3>
+                    <button onclick="refreshHealth()">Refresh</button>
+                    <button onclick="logout()" class="btn-danger">Logout</button>
+                </div>
+            `;
+        } else {
+            document.getElementById('health-content').innerHTML = '<p>Error loading health information.</p>';
+        }
+    } catch (error) {
+        document.getElementById('health-content').innerHTML = `<p>Error: ${error.message}</p>`;
+    }
+}
+
+function refreshHealth() {
+    document.getElementById('health-content').innerHTML = '<p>Loading system health information...</p>';
+    loadHealth();
+}
+
+function logout() {
+    localStorage.removeItem('access_token');
+    window.location.href = '/login';
+}
+</script>
+{% endblock %}

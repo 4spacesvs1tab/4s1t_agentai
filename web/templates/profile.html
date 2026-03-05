@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="main-content">
+    <h2>User Profile</h2>
+    <div id="profile-content">
+        <p>Loading profile...</p>
+    </div>
+</div>
+
+<script>
+// Load user profile
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            window.location.href = '/login';
+            return;
+        }
+        
+        const response = await fetch('/auth/me', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const user = await response.json();
+            document.getElementById('profile-content').innerHTML = `
+                <div class="card">
+                    <h3>Profile Information</h3>
+                    <p><strong>Username:</strong> ${user.username}</p>
+                    <p><strong>Email:</strong> ${user.email}</p>
+                    <p><strong>Full Name:</strong> ${user.full_name}</p>
+                    <p><strong>Role:</strong> ${user.role}</p>
+                    <p><strong>Account Status:</strong> ${user.is_active ? 'Active' : 'Inactive'}</p>
+                    <p><strong>Member Since:</strong> ${user.created_at}</p>
+                    ${user.last_login ? `<p><strong>Last Login:</strong> ${user.last_login}</p>` : ''}
+                </div>
+                
+                <div class="card">
+                    <h3>Actions</h3>
+                    <button onclick="logout()" class="btn-danger">Logout</button>
+                </div>
+            `;
+        } else {
+            document.getElementById('profile-content').innerHTML = '<p>Error loading profile information.</p>';
+        }
+    } catch (error) {
+        document.getElementById('profile-content').innerHTML = `<p>Error: ${error.message}</p>`;
+    }
+});
+
+function logout() {
+    localStorage.removeItem('access_token');
+    window.location.href = '/login';
+}
+</script>
+{% endblock %}

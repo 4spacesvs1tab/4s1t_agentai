@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="main-content">
+    <h2>Dashboard Overview</h2>
+    
+    <div class="card">
+        <h3>Welcome to 4S1T Agent AI</h3>
+        <p>You are successfully logged in to the 4S1T Agent AI system. This dashboard provides access to all core functionality including:</p>
+        <ul>
+            <li>MCP (Model Context Protocol) tool integration</li>
+            <li>AI model management and orchestration</li>
+            <li>System health monitoring</li>
+            <li>User profile management</li>
+        </ul>
+    </div>
+    
+    <div class="card">
+        <h3>Getting Started</h3>
+        <p>Navigate using the sidebar to access different features:</p>
+        <ul>
+            <li><strong>Chat</strong>: Interactive AI chat interface</li>
+            <li><strong>MCP Tools</strong>: Access and execute MCP-compatible tools</li>
+            <li><strong>System Health</strong>: Monitor the status of all system components</li>
+            <li><strong>Profile</strong>: View and update your user information</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+function logout() {
+    localStorage.removeItem('access_token');
+    window.location.href = '/login';
+}
+</script>
+{% endblock %}

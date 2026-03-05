@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2 style="color: var(--accent-color);">{{ t('mcp.title') }}</h2>
+    <p style="color: var(--text-muted);">{{ t('mcp.subtitle') }}</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+    <div class="card">
+        <h3 style="color: var(--accent-color);">{{ t('mcp.available_tools') }}</h3>
+        <div class="terminal-output" id="tools-list" style="max-height: 400px; overflow-y: auto;">
+            {{ t('mcp.loading_tools') }}
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="color: var(--accent-color);">{{ t('mcp.tool_execution') }}</h3>
+
+        <form id="tool-form" onsubmit="executeTool(event)">
+            <div class="form-group">
+                <label for="tool-select">{{ t('mcp.select_tool_label') }}</label>
+                <select id="tool-select" onchange="updateToolInfo()" required>
+                    <option value="">{{ t('mcp.choose_tool') }}</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tool-args">{{ t('mcp.params_label') }}</label>
+                <textarea id="tool-args"
+                          rows="4"
+                          placeholder='{"key": "value"}'
+                          style="font-family: var(--font-mono); font-size: 0.85rem;">{}</textarea>
+            </div>
+
+            <div class="form-group">
+                <button type="submit">
+                    {{ t('mcp.execute_btn') }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="color: var(--accent-color);">{{ t('mcp.execution_results') }}</h3>
+    <div class="terminal-output" id="execution-output" style="min-height: 200px;">
+        {{ t('mcp.ready') }}
+    </div>
+
+    <div style="margin-top: 1rem;">
+        <button onclick="clearOutput()" class="btn-warning">
+            {{ t('mcp.clear_output_btn') }}
+        </button>
+        <button onclick="testSampleTool()" class="btn">
+            {{ t('mcp.test_calc_btn') }}
+        </button>
+    </div>
+</div>
+
+<script>
+const _mcp_i18n = {
+    choose_tool:     '{{ t("mcp.choose_tool") }}',
+    no_tools:        '{{ t("mcp.no_tools") }}',
+    error_loading:   '{{ t("mcp.error_loading") }}',
+    no_description:  '{{ t("mcp.no_description") }}',
+    error_no_tool:   '{{ t("mcp.error_no_tool") }}',
+    error_inv_json:  '{{ t("mcp.error_invalid_json") }}',
+    error_prefix:    '{{ t("mcp.error_prefix") }}',
+    success_prefix:  '{{ t("mcp.success_prefix") }}',
+    exception_pfx:   '{{ t("mcp.exception_prefix") }}',
+    ready:           '{{ t("mcp.ready") }}',
+};
+
+async function loadTools() {
+    try {
+        const response = await fetch('/mcp/tools');
+        const tools = await response.json();
+
+        const select = document.getElementById('tool-select');
+        const list = document.getElementById('tools-list');
+
+        select.innerHTML = `<option value="">${_mcp_i18n.choose_tool}</option>`;
+        list.innerHTML = '';
+
+        if (tools.tools && tools.tools.length > 0) {
+            tools.tools.forEach(tool => {
+                const option = document.createElement('option');
+                option.value = tool.name;
+                option.textContent = `${tool.name} - ${tool.description || _mcp_i18n.no_description}`;
+                select.appendChild(option);
+
+                const div = document.createElement('div');
+                div.style.cssText = 'margin: 0.5rem 0; padding: 0.5rem; border-left: 2px solid var(--accent-color); background-color: rgba(0, 255, 136, 0.05);';
+                div.innerHTML = `<strong>$ ${tool.name}</strong><br><span style="color: var(--text-muted); font-size: 0.85rem;">${tool.description || _mcp_i18n.no_description}</span>`;
+                list.appendChild(div);
+            });
+        } else {
+            list.innerHTML = `<span style="color: var(--text-muted);">${_mcp_i18n.no_tools}</span>`;
+        }
+
+    } catch (error) {
+        console.error('Error loading tools:', error);
+        document.getElementById('tools-list').innerHTML = `<span style="color: var(--error-color);">${_mcp_i18n.error_loading}</span>`;
+    }
+}
+
+function updateToolInfo() {
+    const select = document.getElementById('tool-select');
+    const selectedTool = select.value;
+
+    if (selectedTool) {
+        updateOutput(`$> Selected tool: ${selectedTool}`);
+
+        const toolArgs = document.getElementById('tool-args');
+        switch (selectedTool) {
+            case 'calculator':
+                toolArgs.value = '{"expression": "2+2"}';
+                break;
+            case 'chat':
+                toolArgs.value = '{"message": "Hello, World!", "model": "glm-4.6"}';
+                break;
+            default:
+                toolArgs.value = '{}';
+        }
+    }
+}
+
+async function executeTool(event) {
+    event.preventDefault();
+
+    const toolName = document.getElementById('tool-select').value;
+    const argsText = document.getElementById('tool-args').value;
+
+    if (!toolName) {
+        updateOutput(_mcp_i18n.error_no_tool);
+        return;
+    }
+
+    let args;
+    try {
+        args = JSON.parse(argsText || '{}');
+    } catch (error) {
+        updateOutput(`${_mcp_i18n.error_inv_json} ${error.message}`);
+        return;
+    }
+
+    updateOutput(`$> Executing: ${toolName} ${JSON.stringify(args, null, 2)}\n`);
+
+    try {
+        const response = await fetch(`/mcp/tools/${toolName}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(args)
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            updateOutput(`${_mcp_i18n.error_prefix} ${result.error}`);
+        } else {
+            updateOutput(`${_mcp_i18n.success_prefix} ${JSON.stringify(result, null, 2)}`);
+        }
+
+    } catch (error) {
+        updateOutput(`${_mcp_i18n.exception_pfx} ${error.message}`);
+    }
+}
+
+function updateOutput(message) {
+    const output = document.getElementById('execution-output');
+
+    if (message.startsWith('$>')) {
+        output.innerHTML = message;
+    } else {
+        output.innerHTML = '<pre style="font-family: var(--font-mono); font-size: 0.85rem;">' + message + '</pre>';
+    }
+
+    output.scrollTop = output.scrollHeight;
+}
+
+function clearOutput() {
+    document.getElementById('execution-output').innerHTML = _mcp_i18n.ready;
+}
+
+async function testSampleTool() {
+    document.getElementById('tool-select').value = 'calculator';
+    document.getElementById('tool-args').value = '{"expression": "10*4+2"}';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadTools();
+});
+</script>
+{% endblock %}

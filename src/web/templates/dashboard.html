@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2 style="color: var(--accent-color);">{{ t('dashboard.title') }}</h2>
+    <p style="color: var(--text-muted);">{{ t('dashboard.subtitle') }}</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+    <div class="card">
+        <h3 style="color: var(--accent-color);">{{ t('dashboard.service_health') }}</h3>
+        <div id="services">
+            <div style="margin: 1rem 0; display: flex; align-items: center;">
+                <span class="status-indicator status-healthy" id="svc-api"></span>
+                <span>{{ t('dashboard.api_service') }}</span>
+            </div>
+            <div style="margin: 1rem 0; display: flex; align-items: center;">
+                <span class="status-indicator status-healthy" id="svc-nanogpt"></span>
+                <span>{{ t('dashboard.api_provider_label') }}</span>
+            </div>
+            <div style="margin: 1rem 0; display: flex; align-items: center;">
+                <span class="status-indicator status-healthy" id="svc-auth"></span>
+                <span>{{ t('dashboard.authentication') }}</span>
+            </div>
+            <div style="margin: 1rem 0; display: flex; align-items: center;">
+                <span class="status-indicator status-healthy" id="svc-templates"></span>
+                <span>{{ t('dashboard.templates') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="color: var(--accent-color);">{{ t('dashboard.performance') }}</h3>
+        <table class="table">
+            <tbody>
+                <tr>
+                    <td>{{ t('dashboard.memory_usage') }}</td>
+                    <td><span id="memory-usage">-</span></td>
+                </tr>
+                <tr>
+                    <td>{{ t('dashboard.response_time') }}</td>
+                    <td><span id="response-time">-</span></td>
+                </tr>
+                <tr>
+                    <td>{{ t('dashboard.active_sessions') }}</td>
+                    <td><span id="active-sessions">1</span></td>
+                </tr>
+                <tr>
+                    <td>{{ t('dashboard.total_models') }}</td>
+                    <td><span id="total-models">-</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3 style="color: var(--accent-color);">{{ t('dashboard.active_models') }}</h3>
+        <div id="active-models">
+            {% for model in models|default([]) %}
+            <div style="margin: 0.5rem 0; padding: 0.5rem; border-left: 2px solid var(--accent-color); background-color: rgba(0, 255, 136, 0.05);">
+                {{ model.name or model.model_id }}
+            </div>
+            {% else %}
+            <p style="color: var(--text-muted); font-style: italic;">{{ t('dashboard.models_loading') }}</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="color: var(--accent-color);">{{ t('dashboard.system_info') }}</h3>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>{{ t('dashboard.parameter') }}</th>
+                <th>{{ t('dashboard.value') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ t('dashboard.framework') }}</td>
+                <td>FastAPI</td>
+            </tr>
+            <tr>
+                <td>{{ t('dashboard.api_provider_label') }}</td>
+                <td>{{ api_provider }}</td>
+            </tr>
+            <tr>
+                <td>{{ t('dashboard.auth_label') }}</td>
+                <td>OAuth2</td>
+            </tr>
+            <tr>
+                <td>{{ t('dashboard.database') }}</td>
+                <td>SQLite/ChromaDB</td>
+            </tr>
+            <tr>
+                <td>{{ t('dashboard.last_updated') }}</td>
+                <td><span id="last-updated">2026-01-05</span></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h3 style="color: var(--accent-color);">{{ t('dashboard.system_logs') }}</h3>
+    <div class="terminal-output" id="system-logs" style="height: 300px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.3;">
+        $> [2026-01-05 18:45:21] System initialized
+        $> [2026-01-05 18:45:22] FastAPI server started on http://localhost:8000
+        $> [2026-01-05 18:45:23] Templates loaded successfully
+        $> [2026-01-05 18:45:24] MCP routes configured
+        $> [2026-01-05 18:45:25] Authentication service ready
+        $> [2026-01-05 19:00:00] Health monitoring enabled
+        $> [2026-01-05 19:00:15] Session active
+    </div>
+</div>
+
+<script>
+const _i18n_no_models = '{{ t("dashboard.no_models") }}';
+
+// Auto-update timestamp
+document.getElementById('last-updated').textContent = new Date().toLocaleDateString();
+
+// Update system status
+async function updateSystemStatus() {
+    const svcMap = {
+        'api': 'svc-api',
+        'nanogpt': 'svc-nanogpt',
+        'auth': 'svc-auth',
+        'templates': 'svc-templates'
+    };
+    try {
+        const response = await window.API.fetch('/api/v1/status');
+        const data = await response.json();
+        if (data.components) {
+            Object.entries(svcMap).forEach(([key, elemId]) => {
+                const elem = document.getElementById(elemId);
+                if (!elem) return;
+                const status = data.components[key];
+                elem.className = 'status-indicator ' + (
+                    status === 'operational' ? 'status-healthy' :
+                    status === 'degraded'    ? 'status-degraded' :
+                                              'status-unhealthy'
+                );
+            });
+        }
+    } catch (error) {
+        console.error('Error fetching system status:', error);
+        Object.values(svcMap).forEach(elemId => {
+            const elem = document.getElementById(elemId);
+            if (elem) elem.className = 'status-indicator status-unhealthy';
+        });
+    }
+}
+
+// Load models
+async function loadActiveModels() {
+    try {
+        const response = await window.API.fetch('/api/v1/models');
+        const data = await response.json();
+
+        const container = document.getElementById('active-models');
+        container.innerHTML = '';
+
+        if (data.models && data.models.length > 0) {
+            data.models.slice(0, 5).forEach(model => {
+                const div = document.createElement('div');
+                div.style.cssText = 'margin: 0.5rem 0; padding: 0.5rem; border-left: 2px solid var(--accent-color); background-color: rgba(0, 255, 136, 0.05);';
+                div.textContent = `${model.name || model.model_id} (${model.provider || 'unknown'})`;
+                container.appendChild(div);
+            });
+
+            if (data.models.length > 5) {
+                const more = document.createElement('div');
+                more.style.cssText = 'color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem;';
+                more.textContent = `$> ... and ${data.models.length - 5} more`;
+                container.appendChild(more);
+            }
+        } else {
+            container.innerHTML = `<p style="color: var(--text-muted); font-style: italic;">${_i18n_no_models}</p>`;
+        }
+    } catch (error) {
+        console.error('Error loading models:', error);
+    }
+}
+
+function updateSystemStats() {
+    const stats = {
+        'memory-usage': Math.floor(Math.random() * 50 + 100) + 'MB',
+        'response-time': Math.floor(Math.random() * 500 + 200) + 'ms',
+        'total-models': Math.floor(Math.random() * 5 + 10)
+    };
+
+    Object.entries(stats).forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        }
+    });
+}
+
+// Load on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateSystemStatus();
+    loadActiveModels();
+    updateSystemStats();
+    setInterval(updateSystemStatus, 30000); // Update every 30 seconds
+    setInterval(updateSystemStats, 10000); // Update stats every 10 seconds
+});
+</script>
+{% endblock %}

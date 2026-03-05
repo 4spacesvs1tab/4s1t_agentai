@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 400px; margin: 0 auto;">
+    <h2 style="color: var(--accent-color); text-align: center;">{{ t('login.title') }}</h2>
+
+    <div id="error-message" class="error" style="margin-bottom: 1rem; display: none;"></div>
+
+    <form id="login-form">
+        <input type="hidden" id="csrf_token" name="csrf_token" value="{{ csrf_token }}">
+        <div class="form-group">
+            <label for="username">{{ t('login.username_label') }}</label>
+            <input type="text"
+                   id="username"
+                   name="username"
+                   required
+                   autocomplete="username"
+                   placeholder="{{ t('login.placeholder_username') }}">
+        </div>
+
+        <div class="form-group">
+            <label for="password">{{ t('login.password_label') }}</label>
+            <input type="password"
+                   id="password"
+                   name="password"
+                   required
+                   autocomplete="current-password"
+                   placeholder="{{ t('login.placeholder_password') }}">
+        </div>
+
+        <div class="form-group" style="text-align: center;">
+            <button type="submit">
+                {{ t('login.submit') }}
+            </button>
+        </div>
+
+        <div style="text-align: center; margin-top: 1rem;">
+            <a href="/register" style="color: var(--accent-color); font-size: 0.9rem;">
+                {{ t('login.create_account') }}
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('username').focus();
+
+    const form = document.getElementById('login-form');
+    const errorDiv = document.getElementById('error-message');
+
+    form.addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        const csrfToken = document.getElementById('csrf_token')?.value || '';
+        try {
+            const response = await fetch('/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRF-Token': csrfToken,
+                },
+                body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                if (data.requires_mfa_enrollment) {
+                    sessionStorage.setItem('mfa_enrollment_token', data.access_token);
+                    window.location.href = data.redirect || '/auth/2fa/enroll';
+                    return;
+                }
+
+                if (data.requires_mfa) {
+                    sessionStorage.setItem('mfa_session_token', data.session_token);
+                    window.location.href = '/auth/mfa/verify';
+                    return;
+                }
+
+                if (data.access_token) {
+                    localStorage.setItem('access_token', data.access_token);
+                    window.location.href = '/chat';
+                }
+            } else {
+                const errorData = await response.json();
+                errorDiv.textContent = '$> ' + (errorData.detail || '{{ t("login.failed") }}');
+                errorDiv.style.display = 'block';
+            }
+        } catch (error) {
+            errorDiv.textContent = '$> {{ t("login.network_error") }} ' + error.message;
+            errorDiv.style.display = 'block';
+        }
+    });
+
+    const inputs = document.querySelectorAll('input');
+    inputs.forEach(input => {
+        input.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                form.dispatchEvent(new Event('submit'));
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
