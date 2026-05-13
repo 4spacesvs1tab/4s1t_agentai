@@ -1,0 +1,69 @@
+{
+  "name": "export_document",
+  "version": "1.0.0",
+  "description": "Assemble a multi-section document and export it as DOCX, PDF, PPTX, XLSX, HTML, or ODT. Saves the file to data/documents/ and returns a download_path. After a successful export, include the returned download_path as a Markdown link in your response: [📄 Filename.docx](/api/v1/documents/file_id) — the UI renders this as a download card. For XLSX (spreadsheets), use xlsx_sheets instead of sections. For all other formats, provide sections as ordered markdown content blocks. Supported formats: docx (Word, default), pdf, pptx (PowerPoint — headings become slide titles), xlsx (Excel — requires xlsx_sheets), html, odt.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 60,
+  "max_memory_mb": 512,
+  "network_allowed": false,
+  "filesystem_access": "read_write",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Document title (H1 heading for pandoc formats; first sheet name for XLSX if not set in xlsx_sheets)."
+      },
+      "format": {
+        "type": "string",
+        "enum": ["docx", "pdf", "pptx", "xlsx", "html", "odt"],
+        "default": "docx",
+        "description": "Output format. docx is best for editable reports. xlsx for tabular BA artifacts (requirements matrix, risk register). pptx for stakeholder presentations."
+      },
+      "filename": {
+        "type": "string",
+        "description": "Output filename stem (no extension). Spaces and special chars will be sanitised. Timestamp appended to ensure uniqueness."
+      },
+      "sections": {
+        "type": "array",
+        "description": "Ordered sections for docx/pdf/pptx/html/odt. Not used for xlsx.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "heading": {"type": "string", "description": "Section heading (H2). For pptx this becomes the slide title."},
+            "content": {"type": "string", "description": "Section body in Markdown. May include image references as standard Markdown: ![alt](/api/v1/documents/file.svg)"}
+          },
+          "required": ["heading", "content"]
+        }
+      },
+      "xlsx_sheets": {
+        "description": "For xlsx format only. List of sheets to create.",
+        "oneOf": [{"type": "array"}, {"type": "null"}],
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string", "description": "Sheet tab name."},
+            "headers": {"type": "array", "items": {"type": "string"}, "description": "Column headers."},
+            "rows": {"type": "array", "description": "List of rows. Each row is a list of cell values."},
+            "col_widths": {"type": "array", "items": {"type": "number"}, "description": "Optional column widths in characters."}
+          },
+          "required": ["name", "headers", "rows"]
+        }
+      }
+    },
+    "required": ["title", "format"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "file_id": {"type": "string"},
+      "download_path": {"type": "string", "description": "Relative URL: /api/v1/documents/{file_id}. Embed as Markdown link in your response."},
+      "format": {"type": "string"},
+      "filename": {"type": "string"},
+      "size_bytes": {"type": "integer"}
+    }
+  }
+}

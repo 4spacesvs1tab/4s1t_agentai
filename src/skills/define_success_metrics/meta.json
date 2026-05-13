@@ -1,0 +1,85 @@
+{
+  "name": "define_success_metrics",
+  "version": "1.0.0",
+  "description": "Define, track, and manage KPIs and success metrics for a BA project. Each metric has a baseline, a target, a direction (higher_is_better / lower_is_better / target_value), a measurement method, and a measurement frequency. Use this when the user wants to establish or review how project success will be measured.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["add", "update", "list", "remove"],
+        "description": "'add' a new metric, 'update' an existing metric by metric_id, 'list' all metrics for a project, 'remove' a metric by metric_id.",
+        "default": "list"
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "project": {
+        "type": "string",
+        "description": "Project identifier. Required for add and list."
+      },
+      "metric_id": {
+        "type": "string",
+        "description": "UUID of the metric. Required for update and remove."
+      },
+      "metric_name": {
+        "type": "string",
+        "description": "Short name for the metric. Required for add."
+      },
+      "description": {
+        "type": "string",
+        "description": "What the metric measures and why it matters."
+      },
+      "unit": {
+        "type": "string",
+        "description": "Unit of measurement (e.g. %, $, days, NPS points)."
+      },
+      "baseline": {
+        "type": "number",
+        "description": "Current value before the initiative (starting point)."
+      },
+      "target": {
+        "type": "number",
+        "description": "Goal value to reach by the end of the initiative."
+      },
+      "direction": {
+        "type": "string",
+        "enum": ["higher_is_better", "lower_is_better", "target_value"],
+        "description": "Whether success means going up, down, or hitting an exact value."
+      },
+      "measurement_method": {
+        "type": "string",
+        "description": "How the metric is measured (e.g. survey, system report, manual count)."
+      },
+      "frequency": {
+        "type": "string",
+        "enum": ["daily", "weekly", "monthly", "on_demand"],
+        "description": "How often the metric is measured."
+      },
+      "owner": {
+        "type": "string",
+        "description": "Person or team accountable for this metric."
+      }
+    },
+    "required": ["action", "user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "metric_id": {"type": "string", "description": "UUID of the affected metric (add/update)."},
+      "record": {"type": "object", "description": "Full metric record after the operation (add/update)."},
+      "metrics": {"type": "array", "description": "List of metric records (list action)."},
+      "count": {"type": "integer", "description": "Number of records returned."},
+      "message": {"type": "string", "description": "Human-readable confirmation."}
+    }
+  }
+}

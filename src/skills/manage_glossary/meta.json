@@ -1,0 +1,77 @@
+{
+  "name": "manage_glossary",
+  "version": "1.0.0",
+  "description": "Maintain a business analysis glossary of terms and definitions. Terms can be project-scoped or global (no project). Supports add, update, remove, list, and text search across term, definition, and synonyms. Use this when the user wants to define, look up, or manage domain vocabulary.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["add", "update", "remove", "list", "search"],
+        "description": "'add' a new term, 'update' an existing term by term_id, 'remove' by term_id, 'list' all terms (optionally filtered by project), 'search' terms by free text.",
+        "default": "list"
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "project": {
+        "type": "string",
+        "description": "Project scope for the term. Omit or null for a global term. Used as filter in list and search."
+      },
+      "term_id": {
+        "type": "string",
+        "description": "UUID of the glossary entry. Required for update and remove."
+      },
+      "term": {
+        "type": "string",
+        "description": "The business term or concept. Required for add."
+      },
+      "definition": {
+        "type": "string",
+        "description": "Clear definition of the term. Required for add."
+      },
+      "synonyms": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Alternative names or abbreviations for the term."
+      },
+      "data_type": {
+        "type": "string",
+        "description": "Optional data type annotation (e.g. String, Integer, Date)."
+      },
+      "source": {
+        "type": "string",
+        "description": "Document or authority the definition is drawn from."
+      },
+      "notes": {
+        "type": "string",
+        "description": "Free-text notes or usage examples."
+      },
+      "query": {
+        "type": "string",
+        "description": "Search text. Required for search action. Matched against term, definition, and synonyms."
+      }
+    },
+    "required": ["action", "user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "term_id": {"type": "string", "description": "UUID of the affected term (add/update)."},
+      "record": {"type": "object", "description": "Full glossary record after the operation (add/update)."},
+      "terms": {"type": "array", "description": "List of glossary records (list action)."},
+      "matches": {"type": "array", "description": "Search result records (search action)."},
+      "count": {"type": "integer", "description": "Number of records returned."},
+      "message": {"type": "string", "description": "Human-readable confirmation."}
+    }
+  }
+}

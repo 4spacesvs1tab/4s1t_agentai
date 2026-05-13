@@ -1,0 +1,75 @@
+{
+  "name": "trace_requirements",
+  "version": "1.0.0",
+  "description": "Manage requirement traceability links between artefacts and report coverage. Actions: 'link' creates a directional relationship (derives/refines/tests/implements/conflicts/duplicates), 'unlink' removes it, 'parents' lists what a requirement derives from, 'children' lists what derives from it, 'matrix' produces a full traceability table for a project, 'coverage' shows the percentage of requirements that have at least one link. Use before sign-off to verify completeness.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["link", "unlink", "parents", "children", "matrix", "coverage"],
+        "description": "Operation: 'link' adds a traceability relationship, 'unlink' removes it, 'parents' shows what source_id derives FROM, 'children' shows what derives FROM source_id, 'matrix' builds a full project table, 'coverage' shows what % of requirements have links.",
+        "default": "matrix"
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "project": {
+        "type": "string",
+        "description": "Project name/slug. Required for link, matrix, coverage."
+      },
+      "source_id": {
+        "type": "string",
+        "description": "ID of the source artefact. Required for link, unlink, parents, children."
+      },
+      "target_id": {
+        "type": "string",
+        "description": "ID of the target artefact. Required for link and unlink."
+      },
+      "link_type": {
+        "type": "string",
+        "enum": ["derives", "refines", "tests", "implements", "conflicts", "duplicates"],
+        "description": "Nature of the relationship. Required for link and unlink."
+      },
+      "source_type": {
+        "type": "string",
+        "enum": ["requirement", "objective", "test_case", "design_element"],
+        "description": "Artefact type of the source. Defaults to 'requirement'.",
+        "default": "requirement"
+      },
+      "target_type": {
+        "type": "string",
+        "enum": ["requirement", "objective", "test_case", "design_element"],
+        "description": "Artefact type of the target. Defaults to 'requirement'.",
+        "default": "requirement"
+      }
+    },
+    "required": ["action", "user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "link_id": {"type": "string", "description": "UUID of the created/existing link (link action)."},
+      "message": {"type": "string", "description": "Human-readable confirmation."},
+      "parents": {"type": "array", "description": "List of parent link records (parents action)."},
+      "children": {"type": "array", "description": "List of child link records (children action)."},
+      "count": {"type": "integer"},
+      "links": {"type": "array", "description": "All links for the project (matrix action)."},
+      "matrix_markdown": {"type": "string", "description": "Markdown traceability table (matrix action)."},
+      "total_requirements": {"type": "integer"},
+      "linked_requirements": {"type": "integer"},
+      "unlinked_pct": {"type": "number"},
+      "linked_pct": {"type": "number"},
+      "unlinked_ids": {"type": "array", "description": "IDs of requirements with no links (coverage action)."}
+    }
+  }
+}

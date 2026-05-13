@@ -1,0 +1,68 @@
+{
+  "name": "report_generate",
+  "version": "1.0.0",
+  "description": "Assemble a structured report document from titled sections and save it to the data directory. Supports Markdown and plain-text output. Returns the full report text and optionally saves it as a file. Use as the final step to produce a polished deliverable from prior analysis.",
+  "agent_scope": ["synthesis_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "read_write",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Report title (displayed as H1 heading in Markdown)."
+      },
+      "sections": {
+        "type": "array",
+        "description": "Ordered list of sections. Each section has a heading and body content.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "heading": {
+              "type": "string",
+              "description": "Section heading (H2 in Markdown)."
+            },
+            "content": {
+              "type": "string",
+              "description": "Section body text. May include Markdown formatting."
+            }
+          },
+          "required": ["heading", "content"]
+        }
+      },
+      "format": {
+        "type": "string",
+        "description": "'markdown' (default) or 'text' for plain text output.",
+        "enum": ["markdown", "text"],
+        "default": "markdown"
+      },
+      "output_filename": {
+        "type": "string",
+        "description": "Optional filename to save the report (e.g. 'final_report.md'). If omitted, the report is returned in-memory only."
+      }
+    },
+    "required": ["title", "sections"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "report": {
+        "type": "string",
+        "description": "The fully assembled report text."
+      },
+      "word_count": {
+        "type": "integer",
+        "description": "Approximate word count of the report."
+      },
+      "file_path": {
+        "type": "string",
+        "description": "Relative path of the saved file, if output_filename was provided. Empty string otherwise."
+      }
+    }
+  }
+}

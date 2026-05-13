@@ -1,0 +1,55 @@
+{
+  "name": "web_scrape",
+  "version": "1.0.0",
+  "description": "Fetch a web page and return its plain-text content with title. Strips all HTML tags and returns readable text up to max_chars. Use after web_search to read the full content of a specific URL. Handles redirects and common encodings.",
+  "agent_scope": ["research_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 30,
+  "max_memory_mb": 256,
+  "network_allowed": true,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "The full URL to fetch (must start with http:// or https://)."
+      },
+      "max_chars": {
+        "type": "integer",
+        "description": "Maximum characters of text to return. Defaults to 8000.",
+        "default": 8000,
+        "minimum": 100,
+        "maximum": 50000
+      }
+    },
+    "required": ["url"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Page title extracted from <title> tag, or empty string if not found."
+      },
+      "text": {
+        "type": "string",
+        "description": "Plain text content of the page with HTML stripped."
+      },
+      "url": {
+        "type": "string",
+        "description": "Final URL after any redirects."
+      },
+      "char_count": {
+        "type": "integer",
+        "description": "Total characters in the extracted text before truncation."
+      },
+      "truncated": {
+        "type": "boolean",
+        "description": "True if text was truncated to max_chars."
+      }
+    }
+  }
+}

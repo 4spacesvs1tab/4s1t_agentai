@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}API Keys — 4S1T{% endblock %}
+{% block page_title %}API Keys{% endblock %}
+{% block topbar_actions %}
+<button class="v05-btn v05-btn-primary v05-btn-sm" onclick="openCreateModal()">
+    <span data-icon="plus" data-icon-size="14"></span> {{ t('api_keys.add_key') }}
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">{{ t('api_keys.page_title') }}</div>
+    <div class="page-subtitle">{{ t('api_keys.description') }}</div>
+</div>
+
+<!-- New Key Display (hidden by default) -->
+<div id="new-key-display" class="v05-card" style="display:none; border-color:var(--live); padding:0; margin-bottom:14px;">
+    <div class="card-header">
+        <div class="card-title" style="color:var(--live);">{{ t('api_keys.generated_title') }}</div>
+    </div>
+    <div class="card-body">
+        <div class="warning" style="margin-bottom:12px;">
+            <strong>{{ t('api_keys.important_warning') }}</strong>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <input type="text" id="new-key-value" readonly style="flex:1; font-family:monospace; font-size:13px;">
+            <button onclick="copyKey()" class="v05-btn v05-btn-outline v05-btn-sm">{{ t('api_keys.copy_btn') }}</button>
+            <button onclick="dismissNewKey()" class="v05-btn v05-btn-ghost v05-btn-sm">{{ t('api_keys.saved_btn') }}</button>
+        </div>
+    </div>
+</div>
+
+<!-- Error display -->
+<div id="error-display" class="error" style="display:none; margin-bottom:12px;"></div>
+
+<!-- Keys list card -->
+<div class="v05-card" style="padding:0; margin-bottom:14px;">
+    <div class="card-header">
+        <div class="card-title">{{ t('api_keys.your_keys_title') }}</div>
+    </div>
+    <div class="table-wrap" id="keys-list-wrap">
+        <div id="keys-list" style="padding:14px 18px; color:var(--t-2); font-size:13px;">
+            {{ t('common.loading') }}
+        </div>
+    </div>
+</div>
+
+<!-- Usage card -->
+<div class="v05-card" style="padding:0;">
+    <div class="card-header">
+        <div class="card-title">{{ t('api_keys.usage_title') }}</div>
+    </div>
+    <div class="card-body">
+        <p style="margin-bottom:8px; font-size:13px; color:var(--t-2);">{{ t('api_keys.usage_intro') }}</p>
+        <pre style="font-size:12px;"><code>curl -H "X-API-Key: 4s1t_your_key_here" http://localhost:8000/api/v1</code></pre>
+    </div>
+</div>
+
+<!-- ===== Create Key Modal ===== -->
+<div id="modal-create" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(520px,95vw); max-height:90vh; overflow-y:auto; position:relative;">
+        <div class="card-header">
+            <div class="card-title">{{ t('api_keys.create_title') }}</div>
+            <button onclick="closeCreateModal()" class="v05-btn v05-btn-ghost v05-btn-sm" style="margin-left:auto;">✕</button>
+        </div>
+        <div class="card-body">
+            <form id="create-key-form">
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label for="key-name">{{ t('api_keys.name_label') }}</label>
+                    <input type="text" id="key-name" required minlength="3" maxlength="100"
+                           placeholder="{{ t('api_keys.name_placeholder') }}">
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label for="key-description">{{ t('api_keys.description_label') }}</label>
+                    <input type="text" id="key-description" maxlength="500"
+                           placeholder="{{ t('api_keys.description_placeholder') }}">
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                    <div class="form-group" style="margin:0;">
+                        <label for="key-scopes">{{ t('api_keys.scopes_label') }}</label>
+                        <select id="key-scopes" required>
+                            <option value="read">{{ t('api_keys.scope_read') }}</option>
+                            <option value="read,write" selected>{{ t('api_keys.scope_readwrite') }}</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label for="key-expires">{{ t('api_keys.expiry_label') }}</label>
+                        <select id="key-expires">
+                            <option value="">{{ t('api_keys.expiry_never') }}</option>
+                            <option value="30">{{ t('api_keys.expiry_30d') }}</option>
+                            <option value="60">{{ t('api_keys.expiry_60d') }}</option>
+                            <option value="90" selected>{{ t('api_keys.expiry_90d') }}</option>
+                            <option value="180">{{ t('api_keys.expiry_180d') }}</option>
+                            <option value="365">{{ t('api_keys.expiry_365d') }}</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label for="key-provider-override">{{ t('api_keys.provider_override_label') }} <span style="color:var(--t-3); font-size:11px;">{{ t('api_keys.provider_override_optional') }}</span></label>
+                        <select id="key-provider-override">
+                            <option value="">{{ t('api_keys.provider_inherit') }}</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label for="key-model-override">{{ t('api_keys.model_override_label') }} <span style="color:var(--t-3); font-size:11px;">{{ t('api_keys.provider_override_optional') }}</span></label>
+                        <input type="text" id="key-model-override" maxlength="200"
+                               placeholder="{{ t('api_keys.model_override_placeholder') }}">
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                    <button type="button" onclick="closeCreateModal()" class="v05-btn v05-btn-outline v05-btn-sm">{{ t('common.cancel') }}</button>
+                    <button type="submit" class="v05-btn v05-btn-primary v05-btn-sm" id="create-submit-btn">
+                        {{ t('api_keys.generate_btn') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const _ak_i18n = {
+    no_keys:        '{{ t("api_keys.no_keys") }}',
+    please_login:   '{{ t("api_keys.please_login") }}',
+    col_name:       '{{ t("api_keys.col_name") }}',
+    col_scopes:     '{{ t("api_keys.col_scopes") }}',
+    col_model:      '{{ t("api_keys.col_model_override") }}',
+    col_created:    '{{ t("api_keys.col_created") }}',
+    col_status:     '{{ t("api_keys.col_status") }}',
+    status_active:  '{{ t("api_keys.status_active") }}',
+    status_revoked: '{{ t("api_keys.status_revoked") }}',
+    inherit:        '{{ t("api_keys.inherit") }}',
+    revoke_btn:     '{{ t("api_keys.revoke_btn") }}',
+    delete_btn:     '{{ t("api_keys.delete_btn") }}',
+    expires_never:  '{{ t("api_keys.expires_never") }}',
+    revoke_confirm: '{{ t("api_keys.revoke_confirm") }}',
+    delete_confirm: '{{ t("api_keys.delete_confirm") }}',
+    copied:         '{{ t("api_keys.copied") }}',
+    load_error:     '{{ t("api_keys.load_error") }}',
+    failed_create:  '{{ t("api_keys.failed_create") }}',
+    failed_revoke:  '{{ t("api_keys.failed_revoke") }}',
+    failed_delete:  '{{ t("api_keys.failed_delete") }}',
+    col_key:        '{{ t("kb.col_key") }}',
+    creating:       '{{ t("api_keys.creating") }}',
+    generate_btn:   '{{ t("api_keys.generate_btn") }}',
+};
+
+function openCreateModal() {
+    document.getElementById('modal-create').style.display = 'flex';
+}
+function closeCreateModal() {
+    document.getElementById('modal-create').style.display = 'none';
+}
+document.getElementById('modal-create').addEventListener('click', e => {
+    if (e.target.id === 'modal-create') closeCreateModal();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadApiKeys();
+    loadProviders();
+});
+
+async function loadProviders() {
+    try {
+        const resp = await window.API.fetch('/api/v1/providers');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const sel = document.getElementById('key-provider-override');
+        data.providers.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.name;
+            opt.textContent = p.display_name;
+            sel.appendChild(opt);
+        });
+    } catch (e) { /* non-fatal */ }
+}
+
+document.getElementById('create-key-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('create-submit-btn');
+    btn.disabled = true;
+    btn.textContent = _ak_i18n.creating;
+    hideError();
+    try {
+        const response = await window.API.fetch('/api/v1/api-keys', {
+            method: 'POST',
+            body: JSON.stringify({
+                name: document.getElementById('key-name').value.trim(),
+                description: document.getElementById('key-description').value.trim() || null,
+                scopes: document.getElementById('key-scopes').value,
+                expires_days: document.getElementById('key-expires').value ? parseInt(document.getElementById('key-expires').value) : null,
+                provider_override: document.getElementById('key-provider-override').value || null,
+                model_override: document.getElementById('key-model-override').value.trim() || null,
+            })
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || _ak_i18n.failed_create);
+        }
+        const data = await response.json();
+        closeCreateModal();
+        document.getElementById('new-key-value').value = data.key;
+        document.getElementById('new-key-display').style.display = 'block';
+        document.getElementById('create-key-form').reset();
+        await loadApiKeys();
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = _ak_i18n.generate_btn;
+    }
+});
+
+async function loadApiKeys() {
+    const listContainer = document.getElementById('keys-list');
+    try {
+        const response = await window.API.fetch('/api/v1/api-keys');
+        if (!response.ok) {
+            if (response.status === 401) {
+                listContainer.innerHTML = `<p class="error" style="padding:14px 18px;">${_ak_i18n.please_login}</p>`;
+                return;
+            }
+            throw new Error(_ak_i18n.load_error);
+        }
+        const keys = await response.json();
+        if (!keys.length) {
+            listContainer.innerHTML = `<p style="padding:14px 18px; color:var(--t-2);">${_ak_i18n.no_keys}</p>`;
+            listContainer.style.padding = '';
+            return;
+        }
+
+        let html = '<table class="table" style="width:100%;"><thead><tr>';
+        html += `<th>${_ak_i18n.col_name}</th>`;
+        html += `<th>${_ak_i18n.col_key}</th>`;
+        html += `<th>${_ak_i18n.col_model}</th>`;
+        html += `<th>${_ak_i18n.col_status}</th>`;
+        html += `<th>${_ak_i18n.col_created}</th>`;
+        html += `<th></th>`;
+        html += '</tr></thead><tbody>';
+
+        keys.forEach(key => {
+            const isActive = key.is_active;
+            const statusTag = isActive
+                ? `<span class="tag tag-live">${_ak_i18n.status_active}</span>`
+                : `<span class="tag tag-err">${_ak_i18n.status_revoked}</span>`;
+            const modelCell = key.model_override
+                ? `<code style="font-size:12px; color:var(--t-2);">${key.provider_override ? key.provider_override + '/' : ''}${key.model_override}</code>`
+                : `<span style="color:var(--t-3);">${_ak_i18n.inherit}</span>`;
+
+            html += `<tr>
+                <td><strong>${key.name}</strong>${key.description ? `<br><span style="font-size:11px;color:var(--t-3);">${key.description}</span>` : ''}</td>
+                <td><code style="font-size:12px; color:var(--t-2);">${key.scopes}</code></td>
+                <td>${modelCell}</td>
+                <td>${statusTag}</td>
+                <td style="color:var(--t-2); font-size:12px; white-space:nowrap;">${formatDate(key.created_at)}</td>
+                <td style="text-align:right;">
+                    <div style="display:flex; gap:4px; justify-content:flex-end;">
+                        ${isActive ? `<button onclick="revokeKey('${key.id}')" class="v05-btn v05-btn-outline v05-btn-sm">${_ak_i18n.revoke_btn}</button>` : ''}
+                        <button onclick="deleteKey('${key.id}')" class="v05-btn v05-btn-danger v05-btn-sm">${_ak_i18n.delete_btn}</button>
+                    </div>
+                </td>
+            </tr>`;
+        });
+
+        html += '</tbody></table>';
+        listContainer.innerHTML = html;
+        listContainer.style.padding = '0';
+    } catch (error) {
+        listContainer.innerHTML = `<p class="error" style="padding:14px 18px;">${_ak_i18n.load_error}: ${error.message}</p>`;
+    }
+}
+
+async function revokeKey(keyId) {
+    if (!confirm(_ak_i18n.revoke_confirm)) return;
+    try {
+        const r = await window.API.fetch(`/api/v1/api-keys/${keyId}/revoke`, { method: 'POST' });
+        if (!r.ok) throw new Error((await r.json()).detail || _ak_i18n.failed_revoke);
+        await loadApiKeys();
+    } catch (e) { showError(e.message); }
+}
+
+async function deleteKey(keyId) {
+    if (!confirm(_ak_i18n.delete_confirm)) return;
+    try {
+        const r = await window.API.fetch(`/api/v1/api-keys/${keyId}`, { method: 'DELETE' });
+        if (!r.ok) throw new Error((await r.json()).detail || _ak_i18n.failed_delete);
+        await loadApiKeys();
+    } catch (e) { showError(e.message); }
+}
+
+function copyKey() {
+    const input = document.getElementById('new-key-value');
+    input.select();
+    try { navigator.clipboard.writeText(input.value); } catch { document.execCommand('copy'); }
+    alert(_ak_i18n.copied);
+}
+function dismissNewKey() {
+    document.getElementById('new-key-display').style.display = 'none';
+    document.getElementById('new-key-value').value = '';
+}
+function showError(msg) {
+    const el = document.getElementById('error-display');
+    el.textContent = `Error: ${msg}`;
+    el.style.display = 'block';
+}
+function hideError() {
+    document.getElementById('error-display').style.display = 'none';
+}
+function formatDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+</script>
+{% endblock %}

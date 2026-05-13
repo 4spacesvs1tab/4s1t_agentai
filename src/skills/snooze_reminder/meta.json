@@ -1,0 +1,44 @@
+{
+  "name": "snooze_reminder",
+  "version": "1.0.0",
+  "description": "Snooze the most recently delivered reminder for a user, or mark it as done. Call this when the user says 'snooze Xh', 'snooze Xm', 'snooze', or 'done'/'dismiss' in response to a reminder DM. Finds the last sent/snoozed reminder and either reschedules it (snooze) or cancels it (done). Returns the updated trigger_at so you can confirm to the user.",
+  "agent_scope": ["research_agent", "synthesis_agent", "ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 64,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string",
+        "description": "User ID (UUID or username) whose last reminder to snooze/dismiss."
+      },
+      "action": {
+        "type": "string",
+        "enum": ["snooze", "done"],
+        "description": "'snooze' reschedules the reminder. 'done' cancels it permanently.",
+        "default": "snooze"
+      },
+      "duration": {
+        "type": "string",
+        "description": "How long to snooze: '1h', '30m', '2h', etc. Only used when action='snooze'. Defaults to '1h'.",
+        "default": "1h"
+      }
+    },
+    "required": ["user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "reminder_id": {"type": "string"},
+      "message": {"type": "string", "description": "The reminder message text."},
+      "action": {"type": "string"},
+      "new_trigger_at": {"type": ["string", "null"], "description": "New UTC ISO trigger time (null if done)."},
+      "new_trigger_at_local": {"type": ["string", "null"], "description": "New trigger time in user's timezone."}
+    }
+  }
+}

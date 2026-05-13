@@ -1,0 +1,86 @@
+{% extends "auth_base.html" %}
+{% block title %}Sign in — 4S1T Agent AI{% endblock %}
+
+{% block content %}
+<div class="v05-auth-card">
+    <div class="v05-auth-logo">
+        <div class="v05-auth-logo-icon">4s1t</div>
+    </div>
+
+    <div id="error-message" class="v05-auth-error" style="display:none; margin-bottom:16px;"></div>
+
+    <form id="login-form" class="v05-auth-form">
+        <input type="hidden" id="csrf_token" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="v05-auth-field">
+            <label for="username">{{ t('login.username_label') }}</label>
+            <input type="text" id="username" name="username" required
+                   autocomplete="username"
+                   placeholder="{{ t('login.placeholder_username') }}">
+        </div>
+
+        <div class="v05-auth-field">
+            <label for="password">{{ t('login.password_label') }}</label>
+            <input type="password" id="password" name="password" required
+                   autocomplete="current-password"
+                   placeholder="{{ t('login.placeholder_password') }}">
+        </div>
+
+        <button type="submit" class="btn-signin">{{ t('login.submit') }}</button>
+    </form>
+
+    <div class="v05-auth-footer">
+        <a href="/register">{{ t('login.create_account') }}</a>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('username').focus();
+
+    var form = document.getElementById('login-form');
+    var errorDiv = document.getElementById('error-message');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        var username = document.getElementById('username').value;
+        var password = document.getElementById('password').value;
+        var csrfToken = document.getElementById('csrf_token')?.value || '';
+        errorDiv.style.display = 'none';
+
+        try {
+            var response = await fetch('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': csrfToken },
+                body: 'username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password)
+            });
+
+            if (response.ok) {
+                var data = await response.json();
+                if (data.requires_mfa_enrollment) {
+                    sessionStorage.setItem('mfa_enrollment_token', data.access_token);
+                    window.location.href = data.redirect || '/auth/2fa/enroll';
+                    return;
+                }
+                if (data.requires_mfa) {
+                    sessionStorage.setItem('mfa_session_token', data.session_token);
+                    window.location.href = '/auth/mfa/verify';
+                    return;
+                }
+                if (data.access_token) {
+                    localStorage.setItem('access_token', data.access_token);
+                    window.location.href = '/chat';
+                }
+            } else {
+                var err = await response.json();
+                errorDiv.textContent = err.detail || '{{ t("login.failed") }}';
+                errorDiv.style.display = 'block';
+            }
+        } catch (error) {
+            errorDiv.textContent = '{{ t("login.network_error") }} ' + error.message;
+            errorDiv.style.display = 'block';
+        }
+    });
+});
+</script>
+{% endblock %}

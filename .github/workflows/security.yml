@@ -1,0 +1,67 @@
+name: Security Audit
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    # Run weekly on Mondays at 08:00 UTC to catch newly published CVEs
+    - cron: "0 8 * * 1"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  pip-audit:
+    name: pip-audit — dependency vulnerability scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Upgrade pip
+        run: pip install --upgrade pip
+
+      - name: Install pip-audit
+        run: pip install pip-audit==2.9.0
+
+      - name: Install project dependencies
+        # Install with --ignore-installed to avoid conflicts with CI baseline packages.
+        # chromadb requires an older pydantic/fastapi stack; the install may warn
+        # about conflicts but the audit target is what actually gets installed.
+        run: |
+          pip install -r requirements.txt --upgrade-strategy only-if-needed || true
+
+      - name: Run pip-audit
+        # Audit whatever ended up installed in this environment.
+        # --local scans only packages in the current env (not the stdlib).
+        run: pip-audit --local --progress-spinner off
+
+  tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: "CI_Test_S3cret_Key_For_Unit_Tests_Only_1234567890!"
+      DATABASE_URL: "sqlite:///test.db"
+      ALLOWED_ORIGINS: '["http://localhost:3000"]'
+      DEBUG: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install argon2-cffi pydantic pydantic-settings fastapi python-jose cryptography pytest pytest-asyncio
+
+      - name: Run security unit tests
+        run: PYTHONPATH=src pytest src/tests/test_security_argon2.py -v

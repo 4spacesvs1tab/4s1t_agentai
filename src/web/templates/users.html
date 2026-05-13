@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('users.title') }} - 4S1T Agent AI{% endblock %}
+
+{% block content %}
+<div class="card" style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 1.5rem;">
+    <h1 style="font-size: 14px; font-weight: 600; margin-bottom: 0.5rem; color: var(--warning-color);">
+        {{ t('users.admin_heading') }}
+    </h1>
+    <p style="color: var(--text-muted); font-size: 12px; margin-bottom: 1.5rem;">
+        {{ t('users.subtitle') }}
+    </p>
+
+    {% if users %}
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-color);">
+                    <th style="text-align: left; padding: 0.5rem 0.75rem; color: var(--accent-color);">{{ t('users.col_username') }}</th>
+                    <th style="text-align: left; padding: 0.5rem 0.75rem; color: var(--accent-color);">{{ t('users.col_role') }}</th>
+                    <th style="text-align: left; padding: 0.5rem 0.75rem; color: var(--accent-color);">{{ t('users.col_created') }}</th>
+                    <th style="text-align: left; padding: 0.5rem 0.75rem; color: var(--accent-color);">{{ t('users.col_status') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr style="border-bottom: 1px solid var(--border-color); transition: var(--transition);"
+                    onmouseover="this.style.background='var(--bg-hover, rgba(255,255,255,0.03))'"
+                    onmouseout="this.style.background='transparent'">
+                    <td style="padding: 0.5rem 0.75rem; color: var(--text-color);">
+                        {{ u.username }}
+                    </td>
+                    <td style="padding: 0.5rem 0.75rem;">
+                        {% if u.role == 'admin' %}
+                        <span style="color: var(--warning-color);">{{ u.role }}</span>
+                        {% else %}
+                        <span style="color: var(--text-muted);">{{ u.role or 'user' }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.5rem 0.75rem; color: var(--text-muted);">
+                        {{ u.created_at[:10] if u.created_at else '—' }}
+                    </td>
+                    <td style="padding: 0.5rem 0.75rem;">
+                        {% if u.is_active %}
+                        <span style="color: var(--success-color, #4caf50);">{{ t('users.status_active') }}</span>
+                        {% else %}
+                        <span style="color: var(--error-color);">{{ t('users.status_inactive') }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p style="color: var(--text-muted); font-size: 11px; margin-top: 1rem;">
+        {{ users | length }} {{ t('users.users_count_suffix') }}
+    </p>
+    {% else %}
+    <p style="color: var(--text-muted); font-size: 12px;">{{ t('users.no_users') }}</p>
+    {% endif %}
+</div>
+{% endblock %}

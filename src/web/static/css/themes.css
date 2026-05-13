@@ -1,0 +1,196 @@
+/* Theme System for 4S1T Agent AI
+ * User-selectable themes with per-user persistence
+ * Default theme: terminal (green on black)
+ */
+
+/* ============================================
+ * THEME 1: TERMINAL (Default)
+ * Green on black, monospace, retro terminal aesthetic
+ * ============================================ */
+:root,
+[data-theme="terminal"] {
+    /* Background Colors */
+    --bg-color: #000000;
+    --bg-secondary: #0f0f0f;
+    
+    /* Text Colors */
+    --text-color: #00ff00;
+    --text-muted: #008000;
+    
+    /* Accent Colors */
+    --accent-color: #00ff00;
+    --accent-hover: #00cc00;
+    
+    /* UI Elements */
+    --border-color: #004000;
+    --error-color: #ff5555;
+    --warning-color: #ffff55;
+    --success-color: #50fa7b;
+    
+    /* Typography */
+    --font-family: 'Andale Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+    --font-size-base: 11px;
+    --font-size-small: 9px;
+    --font-size-large: 12px;
+    --font-size-h1: 13px;
+    --font-size-h2: 12px;
+    --font-size-h3: 11px;
+    
+    /* Spacing */
+    --sidebar-width: 200px;
+    --padding-sm: 0.5rem;
+    --padding-md: 1rem;
+    --padding-lg: 1.5rem;
+    
+    /* Transitions */
+    --transition: 0.1s ease;
+    
+    /* Border Radius */
+    --radius-sm: 1px;
+    --radius-md: 2px;
+}
+
+/* ============================================
+ * THEME 2: DARK GREY TECHNICAL
+ * Dark sophisticated palette with green accents
+ * ============================================ */
+[data-theme="dark_grey_technical"] {
+    /* Background Colors */
+    --bg-color: #0F1416;
+    --bg-secondary: #1E2527;
+    
+    /* Text Colors */
+    --text-color: #F1F5F9;
+    --text-muted: #94A3B8;
+    
+    /* Accent Colors */
+    --accent-color: #48D597;
+    --accent-hover: #3BC282;
+    
+    /* UI Elements */
+    --border-color: #2D3335;
+    --error-color: #EF4444;
+    --warning-color: #F59E0B;
+    --success-color: #10B981;
+    
+    /* Typography */
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-size-base: 14px;
+    --font-size-small: 12px;
+    --font-size-large: 16px;
+    --font-size-h1: 24px;
+    --font-size-h2: 20px;
+    --font-size-h3: 18px;
+    
+    /* Spacing */
+    --sidebar-width: 240px;
+    --padding-sm: 0.5rem;
+    --padding-md: 1rem;
+    --padding-lg: 1.5rem;
+    
+    /* Transitions */
+    --transition: 0.2s ease;
+    
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+}
+
+/* ============================================
+ * THEME 3: TEAL MODERN
+ * Clean white/light content with teal accents
+ * ============================================ */
+[data-theme="teal_modern"] {
+    /* Background Colors */
+    --bg-color: #F8FAFC;
+    --bg-secondary: #FFFFFF;
+    
+    /* Text Colors */
+    --text-color: #1E293B;
+    --text-muted: #64748B;
+    
+    /* Accent Colors */
+    --accent-color: #04EFae;
+    --accent-hover: #03D496;
+    
+    /* UI Elements */
+    --border-color: #E2E8F0;
+    --error-color: #EF4444;
+    --warning-color: #F59E0B;
+    --success-color: #10B981;
+    
+    /* Typography */
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-size-base: 14px;
+    --font-size-small: 12px;
+    --font-size-large: 16px;
+    --font-size-h1: 24px;
+    --font-size-h2: 20px;
+    --font-size-h3: 18px;
+    
+    /* Spacing */
+    --sidebar-width: 240px;
+    --padding-sm: 0.5rem;
+    --padding-md: 1rem;
+    --padding-lg: 1.5rem;
+    
+    /* Transitions */
+    --transition: 0.2s ease;
+    
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+}
+
+/* ============================================
+ * THEME 4: BLUE PROFESSIONAL
+ * Clean corporate style with blue accents
+ * ============================================ */
+[data-theme="blue_professional"] {
+    /* Background Colors */
+    --bg-color: #F8FAFC;
+    --bg-secondary: #FFFFFF;
+    
+    /* Text Colors */
+    --text-color: #0F172A;
+    --text-muted: #475569;
+    
+    /* Accent Colors */
+    --accent-color: #1FA9FF;
+    --accent-hover: #0E8FE8;
+    
+    /* UI Elements */
+    --border-color: #E2E8F0;
+    --error-color: #EF4444;
+    --warning-color: #F59E0B;
+    --success-color: #10B981;
+    
+    /* Typography */
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-size-base: 14px;
+    --font-size-small: 12px;
+    --font-size-large: 16px;
+    --font-size-h1: 24px;
+    --font-size-h2: 20px;
+    --font-size-h3: 18px;
+    
+    /* Spacing */
+    --sidebar-width: 240px;
+    --padding-sm: 0.5rem;
+    --padding-md: 1rem;
+    --padding-lg: 1.5rem;
+    
+    /* Transitions */
+    --transition: 0.2s ease;
+    
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+}
+
+/* ============================================
+ * FALLBACK: If no theme set, use terminal
+ * ============================================ */
+html:not([data-theme]) {
+    /* Inherits from :root which is terminal theme */
+}

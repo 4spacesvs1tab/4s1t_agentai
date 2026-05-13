@@ -1,0 +1,56 @@
+{
+  "name": "schedule_reminder",
+  "version": "1.0.0",
+  "description": "Schedule a time-based reminder for the user. Accepts natural-language time expressions ('in 2 days', 'next Monday at 10am', 'tomorrow morning') or ISO timestamps. The reminder is delivered as a NIP-17 DM at the specified time. Optional recurrence: 'daily', 'weekly', 'monthly'. Returns the scheduled trigger_at timestamp so the agent can confirm the exact time to the user.",
+  "agent_scope": ["research_agent", "synthesis_agent", "ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "message": {
+        "type": "string",
+        "description": "The reminder message to deliver (1–500 chars). Write in second person so it reads naturally as a DM: 'Call Charlie', 'Submit Q2 report', etc."
+      },
+      "trigger_expression": {
+        "type": "string",
+        "description": "When to fire the reminder. Accepts natural language ('in 2 days', 'next Monday at 10am', 'tomorrow morning at 9', 'in 30 minutes') or an ISO 8601 timestamp (UTC). Relative expressions are resolved against the current UTC time."
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID for whom to create the reminder. Always pass the user_id from the session context."
+      },
+      "user_timezone": {
+        "type": "string",
+        "description": "User's IANA timezone for display purposes (e.g. 'Europe/Warsaw'). Defaults to 'UTC' if not provided.",
+        "default": "UTC"
+      },
+      "priority": {
+        "type": "string",
+        "enum": ["normal", "high", "urgent"],
+        "description": "'normal' (default): standard DM. 'high': prepends ⚠️. 'urgent': prepends 🚨 URGENT.",
+        "default": "normal"
+      },
+      "recurrence": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Repeat pattern: 'daily', 'weekly', 'monthly'. Null for one-shot (default).",
+        "default": null
+      }
+    },
+    "required": ["message", "trigger_expression", "user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "reminder_id": {"type": "string", "description": "UUID of the created reminder row."},
+      "trigger_at": {"type": "string", "description": "UTC ISO timestamp when the reminder will fire."},
+      "trigger_at_local": {"type": "string", "description": "Trigger time formatted in the user's timezone for confirmation."},
+      "recurrence": {"oneOf": [{"type": "string"}, {"type": "null"}]}
+    }
+  }
+}

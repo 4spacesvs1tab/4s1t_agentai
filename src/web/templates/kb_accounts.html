@@ -1,0 +1,743 @@
+{% extends "base.html" %}
+
+{% block title %}KB Accounts — 4S1T{% endblock %}
+{% block page_title %}Accounts{% endblock %}
+{% block topbar_actions %}
+<button id="consolidate-btn" class="v05-btn v05-btn-outline v05-btn-sm" style="display:none;" onclick="openConsolidateModal()">
+    {{ t('kb.consolidate_btn') }}
+</button>
+<button class="v05-btn v05-btn-outline v05-btn-sm" onclick="openAddModal()">
+    <span data-icon="plus" data-icon-size="14"></span> {{ t('kb.add_account') }}
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">{{ t('kb.accounts_title') }}</div>
+    <div class="page-subtitle">{{ t('kb.accounts_subtitle') }}</div>
+</div>
+
+<!-- Single card: search bar + table -->
+<div class="v05-card" style="padding:0; margin-bottom:14px;">
+    <div style="padding:12px 18px; border-bottom:1px solid var(--b); display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <div class="search-wrap" style="flex:1; min-width:160px;">
+            <span class="search-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            </span>
+            <input class="input" id="filter-search" type="text" placeholder="{{ t('kb.search_accounts') }}" oninput="filterTable()" style="height:34px; padding-top:0; padding-bottom:0;">
+        </div>
+        <select class="input select" id="filter-domain" onchange="loadAccounts()" style="width:160px; height:34px; padding-top:0; padding-bottom:0;">
+            <option value="">{{ t('kb.all_domains') }}</option>
+        </select>
+        <select class="input select" id="filter-layer" onchange="loadAccounts()" style="width:140px; height:34px; padding-top:0; padding-bottom:0;">
+            <option value="">{{ t('kb.all_layers') }}</option>
+            <option value="1">{{ t('kb.layer_manual') }}</option>
+            <option value="2">{{ t('kb.layer_approved') }}</option>
+        </select>
+    </div>
+    <div class="table-wrap">
+        <table class="table" id="accounts-table" style="width:100%;">
+            <thead>
+                <tr>
+                    <th style="width:28px; padding-right:0;"><input type="checkbox" id="check-all" title="Select all" onchange="toggleSelectAll(this.checked)"></th>
+                    <th>{{ t('kb.col_account') }}</th>
+                    <th>{{ t('kb.col_domain') }}</th>
+                    <th>{{ t('kb.col_platforms') }}</th>
+                    <th>{{ t('kb.col_last_ingested') }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="accounts-tbody">
+                <tr><td colspan="6" style="color:var(--t-2);">{{ t('common.loading') }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="status-bar" style="color:var(--t-2); font-size:0.85rem; margin-top:0.5rem; min-height:1.2em;"></div>
+
+<!-- ===== Add Account Modal ===== -->
+<div id="modal-add" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(500px,95vw); max-height:90vh; overflow-y:auto; position:relative;">
+        <h3 style="margin-bottom:1rem;">{{ t('kb.add_account_title') }}</h3>
+        <div class="form-group">
+            <label>{{ t('kb.field_display_name') }}</label>
+            <input id="add-name" type="text" placeholder="e.g. Adam Smith" style="width:100%;">
+        </div>
+        <div class="form-group" style="margin-top:0.75rem;">
+            <label>{{ t('kb.field_domains') }}</label>
+            <input id="add-domains" type="text" placeholder="macroeconomics|geopolitics" style="width:100%;">
+        </div>
+        <div class="form-group" style="margin-top:0.75rem;">
+            <label>{{ t('kb.field_layer') }}</label>
+            <select id="add-layer">
+                <option value="1">{{ t('kb.layer_manual') }}</option>
+                <option value="2">{{ t('kb.layer_approved') }}</option>
+            </select>
+        </div>
+        <h4 style="margin:1rem 0 0.25rem;">{{ t('kb.platform_aliases') }} <span style="color:var(--err); font-size:0.75em;">*</span></h4>
+        <p style="font-size:12px; color:var(--t-3); margin:0 0 0.5rem;">{{ t('kb.platform_alias_hint') }}</p>
+        <div id="alias-inputs">
+            <div class="alias-row" style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+                <select class="alias-platform" style="width:auto;">
+                    <option value="">— platform —</option>
+                    <option>twitter</option><option>youtube</option><option>nostr</option>
+                    <option>podcast</option><option>rumble</option><option>website</option>
+                </select>
+                <input class="alias-id" type="text" placeholder="handle / URL / channel ID" style="flex:1;">
+            </div>
+        </div>
+        <button type="button" onclick="addAliasRow()" class="v05-btn v05-btn-outline v05-btn-sm" style="margin-bottom:1rem;">{{ t('kb.add_platform') }}</button>
+        <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+            <button class="v05-btn v05-btn-outline v05-btn-sm" onclick="closeModal('modal-add')">{{ t('common.cancel') }}</button>
+            <button class="v05-btn v05-btn-primary v05-btn-sm" onclick="submitAddAccount()">{{ t('common.save') }}</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Edit Account Modal ===== -->
+<div id="modal-edit" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(500px,95vw); max-height:90vh; overflow-y:auto;">
+        <h3 style="margin-bottom:1rem;">{{ t('kb.edit_account_title') }}</h3>
+        <input type="hidden" id="edit-id">
+        <div class="form-group">
+            <label>{{ t('kb.field_display_name') }}</label>
+            <input id="edit-name" type="text" style="width:100%;">
+        </div>
+        <div class="form-group" style="margin-top:0.75rem;">
+            <label>{{ t('kb.field_domains') }}</label>
+            <input id="edit-domains" type="text" style="width:100%;">
+        </div>
+        <div class="form-group" style="margin-top:0.75rem;">
+            <label>{{ t('kb.field_layer') }}</label>
+            <select id="edit-layer">
+                <option value="1">{{ t('kb.layer_manual') }}</option>
+                <option value="2">{{ t('kb.layer_approved') }}</option>
+            </select>
+        </div>
+        <h4 style="margin:1rem 0 0.5rem;">{{ t('kb.platform_aliases') }}</h4>
+        <div id="edit-aliases-list"></div>
+        <div style="display:flex; gap:0.5rem; margin:0.5rem 0 1rem; align-items:center;">
+            <select id="new-alias-platform" style="width:auto;">
+                <option value="">— platform —</option>
+                <option>twitter</option><option>youtube</option><option>nostr</option>
+                <option>podcast</option><option>rumble</option><option>website</option>
+            </select>
+            <input id="new-alias-id" type="text" placeholder="handle / URL" style="flex:1;">
+            <button type="button" onclick="addEditAlias()" class="v05-btn v05-btn-outline v05-btn-sm">{{ t('common.add') }}</button>
+        </div>
+        <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+            <button class="v05-btn v05-btn-outline v05-btn-sm" onclick="closeModal('modal-edit')">{{ t('common.cancel') }}</button>
+            <button class="v05-btn v05-btn-primary v05-btn-sm" onclick="submitEditAccount()">{{ t('common.save') }}</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Confirm Deactivate / Blacklist Modal ===== -->
+<div id="modal-confirm" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(400px,95vw);">
+        <h3 style="color:var(--err); margin-bottom:1rem;" id="confirm-title">{{ t('common.confirm') }}</h3>
+        <p id="confirm-msg" style="color:var(--t-2); margin-bottom:1.5rem;"></p>
+        <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+            <button class="v05-btn v05-btn-outline v05-btn-sm" onclick="closeModal('modal-confirm')">{{ t('common.cancel') }}</button>
+            <button id="confirm-ok-btn" class="v05-btn v05-btn-sm" style="background:var(--err); color:#fff; border-color:var(--err);">{{ t('common.confirm') }}</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Consolidate Accounts Modal ===== -->
+<div id="modal-consolidate" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(540px,95vw); max-height:90vh; overflow-y:auto; position:relative;">
+        <h3 style="margin-bottom:0.25rem;">{{ t('kb.consolidate_title') }}</h3>
+
+        <!-- Step 1: Select main account -->
+        <div id="cons-step-1">
+            <p style="font-size:12px; color:var(--t-2); margin:0.25rem 0 0.75rem;">{{ t('kb.consolidate_step1') }} — <em>{{ t('kb.consolidate_step1_hint') }}</em></p>
+            <div id="cons-step1-accounts"></div>
+        </div>
+
+        <!-- Step 2: Review accounts -->
+        <div id="cons-step-2" style="display:none;">
+            <p style="font-size:12px; color:var(--t-2); margin:0.25rem 0 0.75rem;">{{ t('kb.consolidate_step2') }} — <em>{{ t('kb.consolidate_step2_hint') }}</em></p>
+            <div id="cons-step2-accounts"></div>
+        </div>
+
+        <!-- Step 3: Preview merged result -->
+        <div id="cons-step-3" style="display:none;">
+            <p style="font-size:12px; color:var(--t-2); margin:0.25rem 0 0.75rem;">{{ t('kb.consolidate_step3') }} — <em>{{ t('kb.consolidate_step3_hint') }}</em></p>
+            <div id="cons-step3-content"></div>
+        </div>
+
+        <!-- Step 4: Final confirmation -->
+        <div id="cons-step-4" style="display:none;">
+            <p style="font-size:12px; color:var(--err); margin:0.25rem 0 0.75rem;">{{ t('kb.consolidate_step4') }} — <em>{{ t('kb.consolidate_step4_hint') }}</em></p>
+            <div id="cons-step4-summary"></div>
+        </div>
+
+        <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1.25rem;">
+            <button class="v05-btn v05-btn-outline v05-btn-sm" onclick="closeModal('modal-consolidate')">{{ t('common.cancel') }}</button>
+            <button id="cons-back-btn" class="v05-btn v05-btn-outline v05-btn-sm" style="display:none;" onclick="consBack()">{{ t('kb.consolidate_back') }}</button>
+            <button id="cons-next-btn" class="v05-btn v05-btn-primary v05-btn-sm" onclick="consNext()">{{ t('kb.consolidate_next') }}</button>
+            <button id="cons-confirm-btn" class="v05-btn v05-btn-sm" style="display:none; background:var(--warn); color:#fff; border-color:var(--warn);" onclick="consConfirm()">{{ t('kb.consolidate_confirm') }}</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let _accounts = [];
+let _stats = {};        // account_id → {item_count, last_ingested}
+let _platformStats = {}; // account_id → {platform → {item_count, last_ingested}}
+
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;'}[m]));
+}
+function setStatus(msg, color) {
+    const el = document.getElementById('status-bar');
+    el.textContent = '$ ' + msg;
+    el.style.color = color || 'var(--t-2)';
+}
+
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function ageLabel(ts) {
+    if (!ts) return '—';
+    const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+    if (diff < 3600) return Math.round(diff/60) + 'm ago';
+    if (diff < 86400) return Math.round(diff/3600) + 'h ago';
+    return Math.round(diff/86400) + 'd ago';
+}
+
+async function loadAccounts() {
+    const domain = document.getElementById('filter-domain').value;
+    const layer  = document.getElementById('filter-layer').value;
+    let url = '/api/v1/kb/accounts?';
+    if (domain) url += 'domain=' + encodeURIComponent(domain) + '&';
+    if (layer)  url += 'layer=' + layer;
+
+    try {
+        const [accR, statsR] = await Promise.all([
+            fetch(url, {credentials:'include'}),
+            fetch('/api/v1/kb/stats' + (domain ? '?domain=' + encodeURIComponent(domain) : ''), {credentials:'include'})
+        ]);
+        _accounts = (await accR.json()).accounts || [];
+        const statsData = statsR.ok ? (await statsR.json()) : {};
+        _stats = {};
+        _platformStats = {};
+        for (const a of (statsData.by_account || [])) _stats[a.account_id] = a;
+        for (const ap of (statsData.by_account_platform || [])) {
+            if (!_platformStats[ap.account_id]) _platformStats[ap.account_id] = {};
+            const key = (ap.platform || '').toLowerCase();
+            const existing = _platformStats[ap.account_id][key];
+            if (!existing || ap.item_count > (existing.item_count || 0)) {
+                _platformStats[ap.account_id][key] = {item_count: ap.item_count, last_ingested: ap.last_ingested};
+            }
+        }
+        renderTable();
+        populateDomainFilter(statsData.by_domain || []);
+    } catch(e) {
+        setStatus('Failed to load: ' + e.message, 'var(--err)');
+    }
+}
+
+function populateDomainFilter(byDomain) {
+    const sel = document.getElementById('filter-domain');
+    const cur = sel.value;
+    const opts = ['<option value="">{{ t("kb.all_domains") }}</option>'];
+    for (const d of byDomain) opts.push(`<option value="${d.domain}" ${d.domain===cur?'selected':''}>${d.domain}</option>`);
+    sel.innerHTML = opts.join('');
+}
+
+function filterTable() {
+    const q = document.getElementById('filter-search').value.toLowerCase();
+    const rows = document.querySelectorAll('#accounts-tbody tr[data-id]');
+    rows.forEach(r => {
+        const match = r.dataset.name.toLowerCase().includes(q) || r.dataset.id.toLowerCase().includes(q);
+        r.style.display = match ? '' : 'none';
+    });
+    updateSelection();
+}
+
+const PLATFORM_SHORT = {twitter:'tw', youtube:'yt', nostr:'ns', podcast:'pod', rumble:'rm', website:'web'};
+
+// Domain color dots
+const DOMAIN_COLORS = {
+    {%- for d in kb_domains %}
+    '{{ d.id }}': '{{ d.color }}',
+    {%- endfor %}
+};
+
+function domainDot(domain) {
+    const color = DOMAIN_COLORS[domain] || 'var(--t-3)';
+    return `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:4px;flex-shrink:0;"></span>`;
+}
+
+function renderTable() {
+    const tbody = document.getElementById('accounts-tbody');
+    if (!_accounts.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:var(--t-2);">{{ t("kb.no_accounts") }}</td></tr>';
+        return;
+    }
+    tbody.innerHTML = _accounts.map(a => {
+        // Deduplicate aliases: normalize to lowercase keys, skip empty values
+        const rawAliases = a.aliases || {};
+        const aliases = {};
+        for (const [k, v] of Object.entries(rawAliases)) {
+            const key = k.toLowerCase();
+            if (v && !aliases[key]) aliases[key] = v;
+        }
+        const ps = _platformStats[a.id] || {};
+        const layerColor = a.layer === 1 ? 'var(--live)' : 'var(--warn)';
+
+        // Compact platform badges
+        const platformBadges = Object.entries(aliases).map(([p, v]) => {
+            const pst = ps[p] || {};
+            const label = PLATFORM_SHORT[p] || p;
+            const cnt = pst.item_count != null ? fmtCount(pst.item_count) : '—';
+            return `<span class="tag tag-mono" title="${escapeHtml(p)}: ${escapeHtml(v)}" style="margin-right:4px;">
+                        <span style="color:var(--t); font-weight:700;">${escapeHtml(label)}</span>&nbsp;${cnt}
+                    </span>`;
+        }).join('');
+
+        // Most recent last_ingested across all platforms
+        const lastTs = Object.values(ps).map(x => x.last_ingested).filter(Boolean).sort().pop();
+
+        // Domains display
+        const domainParts = (a.domains||'').split('|').filter(Boolean);
+        const domainsHtml = domainParts.map(d =>
+            `<span style="display:inline-flex;align-items:center;white-space:nowrap;font-size:12px;color:var(--t-2);">${domainDot(d)}${escapeHtml(d)}</span>`
+        ).join(' ');
+
+        const nameCell = `<div>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <strong style="font-size:13px;">${escapeHtml(a.display_name)}</strong>
+                <span style="flex-shrink:0; font-size:10px; padding:1px 5px; border:1px solid ${layerColor}; color:${layerColor}; border-radius:3px;">L${a.layer}</span>
+            </div>
+            <div style="font-size:11px; color:var(--t-3); margin-top:2px;">${escapeHtml(a.id)}</div>
+        </div>`;
+
+        return `<tr data-id="${escapeHtml(a.id)}" data-name="${escapeHtml(a.display_name)}">
+            <td style="padding-right:0;"><input type="checkbox" class="row-check" data-id="${escapeHtml(a.id)}" onchange="updateSelection()"></td>
+            <td>${nameCell}</td>
+            <td>${domainsHtml || '<span style="color:var(--t-3);">—</span>'}</td>
+            <td>${platformBadges || '<span style="color:var(--t-3); font-size:0.78rem;">—</span>'}</td>
+            <td style="font-size:12px; color:var(--t-2);">${lastTs ? ageLabel(lastTs) : '—'}</td>
+            <td>
+                <div style="display:flex; gap:4px; justify-content:flex-end;">
+                    <button class="v05-btn v05-btn-ghost v05-btn-sm" title="Edit"
+                            onclick="openEditModal('${escapeHtml(a.id)}')">
+                        <span data-icon="edit" data-icon-size="13"></span>
+                    </button>
+                    <button class="v05-btn v05-btn-ghost v05-btn-sm" title="Deactivate"
+                            style="color:var(--warn);"
+                            onclick="confirmDeactivate('${escapeHtml(a.id)}','${escapeHtml(a.display_name).replace(/'/g,"\\'")}')">
+                        <span data-icon="x" data-icon-size="13"></span>
+                    </button>
+                    <button class="v05-btn v05-btn-ghost v05-btn-sm" title="Blacklist"
+                            style="color:var(--err);"
+                            onclick="confirmBlacklist('${escapeHtml(a.id)}','${escapeHtml(a.display_name).replace(/'/g,"\\'")}')">
+                        <span data-icon="shield" data-icon-size="13"></span>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+    // Re-inject SVG icons for dynamically rendered rows
+    document.querySelectorAll('#accounts-tbody [data-icon]').forEach(el => {
+        el.innerHTML = icon(el.dataset.icon, parseInt(el.dataset.iconSize || 18));
+    });
+}
+
+function fmtCount(n) {
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return String(n);
+}
+
+// ---- Add Account ----
+function openAddModal() {
+    document.getElementById('add-name').value = '';
+    document.getElementById('add-domains').value = document.getElementById('filter-domain').value;
+    document.getElementById('add-layer').value = '1';
+    document.getElementById('alias-inputs').innerHTML = aliasRowHTML();
+    openModal('modal-add');
+}
+function aliasRowHTML() {
+    return `<div class="alias-row" style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+        <select class="alias-platform" style="width:auto;">
+            <option value="">— platform —</option>
+            <option>twitter</option><option>youtube</option><option>nostr</option>
+            <option>podcast</option><option>rumble</option><option>website</option>
+        </select>
+        <input class="alias-id" type="text" placeholder="handle / URL / channel ID" style="flex:1;">
+        <button type="button" onclick="this.parentElement.remove()" style="padding:0.2rem 0.5rem; color:var(--err);">✕</button>
+    </div>`;
+}
+const _acc_i18n = {
+    layer_manual:  '{{ t("kb.layer_manual") }}',
+    layer_approved: '{{ t("kb.layer_approved") }}',
+};
+function addAliasRow() {
+    document.getElementById('alias-inputs').insertAdjacentHTML('beforeend', aliasRowHTML());
+}
+async function submitAddAccount() {
+    const name = document.getElementById('add-name').value.trim();
+    const domains = document.getElementById('add-domains').value.trim();
+    const layer = parseInt(document.getElementById('add-layer').value);
+    if (!name || !domains) { setStatus('{{ t("kb.name_domains_required") }}', 'var(--err)'); return; }
+
+    const aliases = {};
+    document.querySelectorAll('.alias-row').forEach(row => {
+        const p = row.querySelector('.alias-platform').value;
+        const v = row.querySelector('.alias-id').value.trim();
+        if (p && v) aliases[p] = v;
+    });
+    if (!Object.keys(aliases).length) { setStatus('{{ t("kb.alias_required") }}', 'var(--err)'); return; }
+
+    try {
+        const r = await fetch('/api/v1/kb/accounts', {
+            method:'POST', credentials:'include',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({display_name:name, domains, layer, aliases: Object.keys(aliases).length ? aliases : null})
+        });
+        if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+        closeModal('modal-add');
+        setStatus('{{ t("kb.account_added") }}', 'var(--live)');
+        loadAccounts();
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+// ---- Edit Account ----
+let _editAliases = {};
+function openEditModal(id) {
+    const acc = _accounts.find(a => a.id === id);
+    if (!acc) return;
+    document.getElementById('edit-id').value = acc.id;
+    document.getElementById('edit-name').value = acc.display_name;
+    document.getElementById('edit-domains').value = acc.domains;
+    document.getElementById('edit-layer').value = acc.layer;
+    _editAliases = Object.assign({}, acc.aliases || {});
+    renderEditAliases();
+    openModal('modal-edit');
+}
+function renderEditAliases() {
+    const el = document.getElementById('edit-aliases-list');
+    el.innerHTML = Object.entries(_editAliases).map(([p,v]) =>
+        `<div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.4rem;">
+            <span style="width:70px; color:var(--t-2); font-size:0.85rem;">${escapeHtml(p)}</span>
+            <input type="text" value="${escapeHtml(v)}" data-platform="${escapeHtml(p)}"
+                   onchange="updateEditAlias('${p}', this.value)" style="flex:1;">
+            <button onclick="deleteEditAlias('${p}')" style="padding:0.2rem 0.5rem; color:var(--err); font-size:0.8rem;">✕</button>
+        </div>`
+    ).join('') || '<p style="color:var(--t-2); font-size:0.85rem;">{{ t("kb.no_aliases") }}</p>';
+}
+function updateEditAlias(platform, value) { _editAliases[platform] = value; }
+function deleteEditAlias(platform) { delete _editAliases[platform]; renderEditAliases(); }
+function addEditAlias() {
+    const p = document.getElementById('new-alias-platform').value;
+    const v = document.getElementById('new-alias-id').value.trim();
+    if (!p || !v) return;
+    _editAliases[p] = v;
+    document.getElementById('new-alias-platform').value = '';
+    document.getElementById('new-alias-id').value = '';
+    renderEditAliases();
+}
+async function submitEditAccount() {
+    const id = document.getElementById('edit-id').value;
+    const name = document.getElementById('edit-name').value.trim();
+    const domains = document.getElementById('edit-domains').value.trim();
+    const layer = parseInt(document.getElementById('edit-layer').value);
+    try {
+        // Update core fields
+        await fetch(`/api/v1/kb/accounts/${id}`, {
+            method:'PATCH', credentials:'include',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({display_name:name, domains, layer})
+        });
+        // Sync aliases
+        const originalAcc = _accounts.find(a => a.id === id) || {};
+        const orig = originalAcc.aliases || {};
+        // Delete removed aliases
+        for (const p of Object.keys(orig)) {
+            if (!(p in _editAliases)) {
+                await fetch(`/api/v1/kb/accounts/${id}/aliases/${p}`, {method:'DELETE', credentials:'include'});
+            }
+        }
+        // Upsert changed/new aliases
+        for (const [p,v] of Object.entries(_editAliases)) {
+            if (orig[p] !== v) {
+                await fetch(`/api/v1/kb/accounts/${id}/aliases/${p}`, {
+                    method:'PUT', credentials:'include',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({platform_id: v})
+                });
+            }
+        }
+        closeModal('modal-edit');
+        setStatus('{{ t("kb.account_updated") }}', 'var(--live)');
+        loadAccounts();
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+// ---- Deactivate / Blacklist ----
+function confirmDeactivate(id, name) {
+    document.getElementById('confirm-title').textContent = '{{ t("kb.deactivate_title") }}';
+    document.getElementById('confirm-msg').textContent = `{{ t("kb.deactivate_title") }}: "${name}"?`;
+    document.getElementById('confirm-ok-btn').style.background = 'var(--warn)';
+    document.getElementById('confirm-ok-btn').onclick = () => deactivateAccount(id);
+    openModal('modal-confirm');
+}
+function confirmBlacklist(id, name) {
+    document.getElementById('confirm-title').textContent = '{{ t("kb.blacklist_title") }}';
+    document.getElementById('confirm-msg').textContent = `{{ t("kb.blacklist_title") }}: "${name}"?`;
+    document.getElementById('confirm-ok-btn').style.background = 'var(--err)';
+    document.getElementById('confirm-ok-btn').onclick = () => blacklistAccount(id);
+    openModal('modal-confirm');
+}
+async function deactivateAccount(id) {
+    closeModal('modal-confirm');
+    try {
+        await fetch(`/api/v1/kb/accounts/${id}`, {method:'DELETE', credentials:'include'});
+        setStatus('{{ t("kb.account_deactivated") }}', 'var(--live)');
+        loadAccounts();
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+async function blacklistAccount(id) {
+    closeModal('modal-confirm');
+    try {
+        await fetch(`/api/v1/kb/accounts/${id}/blacklist`, {method:'POST', credentials:'include'});
+        setStatus('{{ t("kb.account_blacklisted") }}', 'var(--live)');
+        loadAccounts();
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+// Close modals on backdrop click
+['modal-add','modal-edit','modal-confirm','modal-consolidate'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => { if (e.target.id === id) closeModal(id); });
+});
+
+// ---- Selection / Consolidate ----
+function updateSelection() {
+    const checked = document.querySelectorAll('.row-check:checked');
+    const btn = document.getElementById('consolidate-btn');
+    btn.style.display = checked.length >= 2 ? '' : 'none';
+    const allBoxes = document.querySelectorAll('.row-check');
+    const visibleBoxes = Array.from(allBoxes).filter(b => b.closest('tr').style.display !== 'none');
+    document.getElementById('check-all').checked = visibleBoxes.length > 0 && visibleBoxes.every(b => b.checked);
+}
+
+function toggleSelectAll(checked) {
+    document.querySelectorAll('.row-check').forEach(b => {
+        if (b.closest('tr').style.display !== 'none') b.checked = checked;
+    });
+    updateSelection();
+}
+
+// ---- Consolidation multi-step flow ----
+let _consolidateStep = 1;
+let _consolidatePreview = null;
+let _consolidateMainId = null;
+let _consolidateSelectedIds = [];
+
+function openConsolidateModal() {
+    _consolidateSelectedIds = Array.from(document.querySelectorAll('.row-check:checked')).map(b => b.dataset.id);
+    if (_consolidateSelectedIds.length < 2) {
+        setStatus('{{ t("kb.consolidate_min2") }}', 'var(--warn)');
+        return;
+    }
+    _consolidateMainId = _consolidateSelectedIds[0];
+    _consolidatePreview = null;
+    showConsolidateStep(1);
+    openModal('modal-consolidate');
+}
+
+function showConsolidateStep(step) {
+    _consolidateStep = step;
+    for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById('cons-step-' + i);
+        if (el) el.style.display = i === step ? '' : 'none';
+    }
+    document.getElementById('cons-back-btn').style.display = step > 1 ? '' : 'none';
+    const nextBtn = document.getElementById('cons-next-btn');
+    const confirmBtn = document.getElementById('cons-confirm-btn');
+    if (step < 4) {
+        nextBtn.style.display = '';
+        confirmBtn.style.display = 'none';
+    } else {
+        nextBtn.style.display = 'none';
+        confirmBtn.style.display = '';
+    }
+
+    if (step === 1) renderConsStep1();
+    if (step === 2) renderConsStep2();
+    if (step === 3) renderConsStep3();
+    if (step === 4) renderConsStep4();
+}
+
+function renderConsStep1() {
+    const container = document.getElementById('cons-step1-accounts');
+    container.innerHTML = _consolidateSelectedIds.map(id => {
+        const acc = _accounts.find(a => a.id === id);
+        if (!acc) return '';
+        const checked = id === _consolidateMainId ? 'checked' : '';
+        const domains = (acc.domains || '').split('|').filter(Boolean).join(', ');
+        const aliases = Object.entries(acc.aliases || {}).map(([p,v]) => `${PLATFORM_SHORT[p]||p}: ${v}`).join(' · ');
+        return `<label style="display:flex; gap:10px; align-items:flex-start; padding:8px; border:1px solid var(--b); border-radius:6px; margin-bottom:6px; cursor:pointer; ${id===_consolidateMainId?'border-color:var(--live);':''}">
+            <input type="radio" name="cons-main" value="${escapeHtml(id)}" ${checked} onchange="selectConsMain('${escapeHtml(id)}')" style="margin-top:3px; flex-shrink:0;">
+            <div>
+                <div style="font-weight:600; font-size:13px;">${escapeHtml(acc.display_name)} <span style="font-size:10px; padding:1px 5px; border:1px solid ${acc.layer===1?'var(--live)':'var(--warn)'}; color:${acc.layer===1?'var(--live)':'var(--warn)'}; border-radius:3px;">L${acc.layer}</span></div>
+                <div style="font-size:11px; color:var(--t-3); margin-top:1px;">${escapeHtml(id)}</div>
+                ${domains ? `<div style="font-size:11px; color:var(--t-2); margin-top:2px;">${escapeHtml(domains)}</div>` : ''}
+                ${aliases ? `<div style="font-size:11px; color:var(--t-3); margin-top:1px;">${escapeHtml(aliases)}</div>` : ''}
+            </div>
+        </label>`;
+    }).join('');
+}
+
+function selectConsMain(id) {
+    _consolidateMainId = id;
+    // Refresh border highlights
+    document.querySelectorAll('#cons-step1-accounts label').forEach(lbl => {
+        const radio = lbl.querySelector('input[type=radio]');
+        lbl.style.borderColor = radio && radio.checked ? 'var(--live)' : 'var(--b)';
+    });
+}
+
+function renderConsStep2() {
+    const secIds = _consolidateSelectedIds.filter(id => id !== _consolidateMainId);
+    const mainAcc = _accounts.find(a => a.id === _consolidateMainId);
+    const container = document.getElementById('cons-step2-accounts');
+
+    function accountCard(acc, badge, badgeColor) {
+        const domains = (acc.domains || '').split('|').filter(Boolean).join(', ');
+        const aliases = Object.entries(acc.aliases || {}).map(([p,v]) => `${PLATFORM_SHORT[p]||p}: ${v}`).join(' · ');
+        return `<div style="padding:8px 10px; border:1px solid var(--b); border-radius:6px; margin-bottom:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:600; font-size:13px;">${escapeHtml(acc.display_name)}</span>
+                <span style="font-size:10px; padding:1px 6px; background:${badgeColor}22; color:${badgeColor}; border:1px solid ${badgeColor}; border-radius:3px;">${badge}</span>
+            </div>
+            <div style="font-size:11px; color:var(--t-3); margin-top:1px;">${escapeHtml(acc.id)}</div>
+            ${domains ? `<div style="font-size:11px; color:var(--t-2); margin-top:3px;">Domains: ${escapeHtml(domains)}</div>` : ''}
+            ${aliases ? `<div style="font-size:11px; color:var(--t-3); margin-top:1px;">${escapeHtml(aliases)}</div>` : ''}
+        </div>`;
+    }
+
+    let html = mainAcc ? accountCard(mainAcc, '{{ t("kb.consolidate_main_badge") }}', 'var(--live)') : '';
+    for (const id of secIds) {
+        const acc = _accounts.find(a => a.id === id);
+        if (acc) html += accountCard(acc, '{{ t("kb.consolidate_secondary_badge") }}', 'var(--warn)');
+    }
+    container.innerHTML = html;
+}
+
+async function renderConsStep3() {
+    const secIds = _consolidateSelectedIds.filter(id => id !== _consolidateMainId);
+    const container = document.getElementById('cons-step3-content');
+    container.innerHTML = '<div style="color:var(--t-2); font-size:0.85rem;">Loading preview…</div>';
+
+    try {
+        const r = await fetch('/api/v1/kb/accounts/consolidate/preview', {
+            method: 'POST', credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({main_id: _consolidateMainId, secondary_ids: secIds}),
+        });
+        if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+        _consolidatePreview = await r.json();
+        const m = _consolidatePreview.merged;
+        const aliases = Object.entries(m.aliases || {}).map(([p,v]) => `<span class="tag tag-mono" style="margin-right:4px;">${escapeHtml(PLATFORM_SHORT[p]||p)}&nbsp;${escapeHtml(v)}</span>`).join('');
+        const domains = (m.domains || '').split('|').filter(Boolean).map(d =>
+            `<span style="display:inline-flex;align-items:center;font-size:12px;margin-right:6px;">${domainDot(d)}${escapeHtml(d)}</span>`
+        ).join('');
+        container.innerHTML = `
+            <div style="padding:10px; border:1px solid var(--live); border-radius:6px; margin-bottom:10px;">
+                <div style="font-weight:600; font-size:14px; margin-bottom:6px;">${escapeHtml(m.display_name)}</div>
+                <div style="margin-bottom:4px;">${domains || '<span style="color:var(--t-3);">—</span>'}</div>
+                <div>${aliases || '<span style="color:var(--t-3); font-size:0.78rem;">—</span>'}</div>
+            </div>
+            <div style="font-size:12px; color:var(--t-2);">
+                {{ t("kb.consolidate_relations") }} ${_consolidatePreview.relations_to_repoint}<br>
+                {{ t("kb.consolidate_cursors") }} ${_consolidatePreview.cursors_to_repoint}
+            </div>`;
+    } catch(e) {
+        container.innerHTML = `<div style="color:var(--err);">Preview failed: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+function renderConsStep4() {
+    const secIds = _consolidateSelectedIds.filter(id => id !== _consolidateMainId);
+    const mainAcc = _accounts.find(a => a.id === _consolidateMainId);
+    document.getElementById('cons-step4-summary').innerHTML = `
+        <div style="font-size:13px; margin-bottom:8px;">
+            <strong>{{ t("kb.consolidate_main_badge") }}:</strong> ${escapeHtml(mainAcc ? mainAcc.display_name : _consolidateMainId)}
+        </div>
+        <div style="font-size:12px; color:var(--warn);">
+            <strong>{{ t("kb.consolidate_secondary_badge") }}:</strong><br>
+            ${secIds.map(id => {
+                const acc = _accounts.find(a => a.id === id);
+                return escapeHtml(acc ? acc.display_name : id);
+            }).join('<br>')}
+        </div>`;
+}
+
+async function consNext() {
+    if (_consolidateStep < 4) {
+        showConsolidateStep(_consolidateStep + 1);
+    }
+}
+
+function consBack() {
+    if (_consolidateStep > 1) showConsolidateStep(_consolidateStep - 1);
+}
+
+async function consConfirm() {
+    const secIds = _consolidateSelectedIds.filter(id => id !== _consolidateMainId);
+    const btn = document.getElementById('cons-confirm-btn');
+    btn.disabled = true;
+    btn.textContent = '…';
+    try {
+        const r = await fetch('/api/v1/kb/accounts/consolidate/confirm', {
+            method: 'POST', credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({main_id: _consolidateMainId, secondary_ids: secIds}),
+        });
+        if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+        closeModal('modal-consolidate');
+        setStatus('{{ t("kb.consolidate_ok") }}', 'var(--live)');
+        // Clear selection
+        document.querySelectorAll('.row-check:checked').forEach(b => { b.checked = false; });
+        updateSelection();
+        loadAccounts();
+    } catch(e) {
+        setStatus('Failed: ' + e.message, 'var(--err)');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '{{ t("kb.consolidate_confirm") }}';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const params = new URLSearchParams(location.search);
+    const initDomain = params.get('domain') || '';
+    const initId = params.get('id') || '';
+
+    if (initDomain) {
+        const sel = document.getElementById('filter-domain');
+        sel.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(initDomain)}" selected>${escapeHtml(initDomain)}</option>`);
+    }
+    await loadAccounts();
+
+    if (initId) {
+        // Pre-fill search with account ID to focus on that account
+        document.getElementById('filter-search').value = initId;
+        filterTable();
+        // Scroll to and highlight the matching row
+        const row = document.querySelector(`#accounts-tbody tr[data-id="${CSS.escape(initId)}"]`);
+        if (row) {
+            row.style.background = 'var(--s3)';
+            row.scrollIntoView({behavior:'smooth', block:'center'});
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,63 @@
+{
+  "name": "prioritize_requirements",
+  "version": "1.0.0",
+  "description": "Applies a deterministic prioritization algorithm to a set of requirements. Supports three methods: MoSCoW (must/should/could/wont categorisation), WSJF (Weighted Shortest Job First — score = (business_value + time_criticality + risk_reduction) / job_size), and Weighted scoring (custom criteria with weights). The agent supplies requirements with pre-scored fields; this skill runs the math and returns a sorted priority table with a markdown report.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "requirements": {
+        "type": "array",
+        "description": "List of requirements. Each item must have id, title, description. For moscow: add category ('must'|'should'|'could'|'wont'). For wsjf: add user_business_value, time_criticality, risk_reduction, job_size (all 1-10). For weighted: add a score per criterion name matching keys in criteria.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string"},
+            "title": {"type": "string"},
+            "description": {"type": "string"}
+          },
+          "required": ["id", "title"]
+        }
+      },
+      "method": {
+        "type": "string",
+        "enum": ["moscow", "wsjf", "weighted"],
+        "description": "Prioritization method. Default: 'moscow'."
+      },
+      "criteria": {
+        "type": "object",
+        "description": "Only for method='weighted'. Keys are criterion names, values are numeric weights. Each requirement must have a matching numeric field per criterion.",
+        "additionalProperties": {"type": "number"}
+      }
+    },
+    "required": ["requirements"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "prioritized": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string"},
+            "title": {"type": "string"},
+            "rank": {"type": "integer"},
+            "score": {"type": "number"},
+            "category_or_method_detail": {"type": "string"}
+          }
+        }
+      },
+      "method_used": {"type": "string"},
+      "priority_table_markdown": {"type": "string"},
+      "summary": {"type": "object"}
+    }
+  }
+}

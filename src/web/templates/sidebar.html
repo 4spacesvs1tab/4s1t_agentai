@@ -1,0 +1,115 @@
+<div class="sidebar">
+    <h3 style="color: var(--accent-color); margin-bottom: 1rem;">Navigation</h3>
+    <ul style="list-style: none;">
+        <li style="margin-bottom: 0.5rem;">
+            <a href="/dashboard" 
+               style="display: block; padding: 0.6rem 0.8rem; border-left: 2px solid transparent; transition: var(--transition); font-size: 0.9rem;"
+               class="{% if request.url.path == '/dashboard' %}active{% endif %}">
+                {% if request.url.path == '/dashboard' %}
+                $> Dashboard
+                {% else %}
+                $ Dashboard
+                {% endif %}
+            </a>
+        </li>
+        <li style="margin-bottom: 0.5rem;">
+            <a href="/chat" 
+               style="display: block; padding: 0.6rem 0.8rem; border-left: 2px solid transparent; transition: var(--transition); font-size: 0.9rem;"
+               class="{% if request.url.path == '/chat' %}active{% endif %}">
+                {% if request.url.path == '/chat' %}
+                $> Chat Terminal
+                {% else %}
+                $ Chat Terminal
+                {% endif %}
+            </a>
+        </li>
+        <li style="margin-bottom: 0.5rem;">
+            <a href="/mcp" 
+               style="display: block; padding: 0.6rem 0.8rem; border-left: 2px solid transparent; transition: var(--transition); font-size: 0.9rem;"
+               class="{% if request.url.path == '/mcp' %}active{% endif %}">
+                {% if request.url.path == '/mcp' %}
+                $> MCP Tools
+                {% else %}
+                $ MCP Tools
+                {% endif %}
+            </a>
+        </li>
+        <li style="margin-bottom: 0.5rem;">
+            <a href="/profile" 
+               style="display: block; padding: 0.6rem 0.8rem; border-left: 2px solid transparent; transition: var(--transition); font-size: 0.9rem;"
+               class="{% if request.url.path == '/profile' %}active{% endif %}">
+                {% if request.url.path == '/profile' %}
+                $> Profile
+                {% else %}
+                $ Profile
+                {% endif %}
+            </a>
+        </li>
+        <li style="margin-bottom: 0.5rem;">
+            <a href="/health" 
+               style="display: block; padding: 0.6rem 0.8rem; border-left: 2px solid transparent; transition: var(--transition); font-size: 0.9rem;"
+               class="{% if request.url.path == '/health' %}active{% endif %}">
+                {% if request.url.path == '/health' %}
+                $> System Health
+                {% else %}
+                $ System Health
+                {% endif %}
+            </a>
+        </li>
+    </ul>
+
+    <!-- Knowledge Base section -->
+    <div style="margin-top: 1.5rem; padding: 0 1rem 0.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+        <p style="color: var(--accent-color); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;">Knowledge Base</p>
+    </div>
+    <ul style="list-style: none;">
+        {% set kb_pages = [
+            ('/kb', 'Dashboard'),
+            ('/kb/accounts', 'Accounts'),
+            ('/kb/discovery', 'Discovery'),
+            ('/kb/graph', 'Graph'),
+            ('/kb/alerts', 'Alerts'),
+            ('/kb/briefs', 'Briefs'),
+            ('/kb/schedule', 'Schedule'),
+            ('/kb/documents', 'Documents'),
+        ] %}
+        {% for path, label in kb_pages %}
+        <li style="margin-bottom: 0.3rem;">
+            <a href="{{ path }}"
+               style="display: block; padding: 0.5rem 0.8rem; border-left: 2px solid transparent; transition: var(--transition); font-size: 0.85rem;"
+               class="{% if request.url.path == path %}active{% endif %}">
+                {% if request.url.path == path %}$> {{ label }}{% else %}$ {{ label }}{% endif %}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+        <p style="color: var(--text-muted); font-size: 0.8rem;">
+            $> Logged in as:<br>
+            <strong>{{ user.username }}</strong>
+        </p>
+        
+        {% if user.is_admin %}
+        <h4 style="color: var(--warning-color); font-size: 0.9rem; margin-top: 1rem;">Admin Panel</h4>
+        <ul style="list-style: none; margin-top: 0.5rem;">
+            <li style="margin-bottom: 0.3rem;">
+                <a href="/users" 
+                   style="display: block; padding: 0.5rem 0.8rem; border-left: 2px solid transparent; transition: var(--transition); font-size: 0.8rem; color: var(--warning-color);">
+                    $ User Management
+                </a>
+            </li>
+        </ul>
+        {% endif %}
+        
+        <h4 style="color: var(--accent-color); font-size: 0.9rem; margin-top: 1rem;">Session</h4>
+        <ul style="list-style: none; margin-top: 0.5rem;">
+            <li style="margin-bottom: 0.3rem;">
+                <a href="/logout" 
+                   style="display: block; padding: 0.5rem 0.8rem; border-left: 2px solid transparent; transition: var(--transition); font-size: 0.8rem; color: var(--error-color);">
+                    $ Logout
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>

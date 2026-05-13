@@ -1,0 +1,8 @@
+# KB Brief Schedule Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# brief_hour_utc
+#   UTC hour (0–23) at which daily briefs are generated and delivered.
+#   The scheduler fires at the top of each UTC hour; briefs are generated on
+#   the first tick at or after this hour where files don't yet exist for today.
+#   Example: 6 → briefs generated at 06:00 UTC = 07:00 CET / 08:00 CEST.
+brief_hour_utc: 6

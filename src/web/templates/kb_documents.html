@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}KB Documents — 4S1T{% endblock %}
+{% block page_title %}Documents{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div class="page-title">{{ t('kb.documents_title') }}</div>
+    <div class="page-subtitle">{{ t('kb.documents_subtitle') }}</div>
+</div>
+
+<!-- Upload form -->
+<div class="v05-card" style="padding:0; margin-bottom:14px;">
+    <div class="v05-card-header">
+        <span class="v05-card-title">{{ t('kb.upload_pdf') }}</span>
+    </div>
+    <div class="v05-card-body">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:16px;">
+            <div class="form-group" style="margin:0;">
+                <label>{{ t('kb.upload_pdf') }} (max 200 MB)</label>
+                <input id="upload-file" type="file" accept=".pdf,application/pdf">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label>{{ t('kb.field_domain') }}</label>
+                <input id="upload-domain" type="text" placeholder="e.g. macroeconomics">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label>{{ t('kb.field_source_tag') }}</label>
+                <input id="upload-source-tag" type="text" placeholder="e.g. pmbok_7">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label>{{ t('kb.field_author') }}</label>
+                <input id="upload-author" type="text" placeholder="e.g. PMI">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label>{{ t('kb.field_pub_date') }}</label>
+                <input id="upload-date" type="date">
+            </div>
+        </div>
+
+        <!-- Progress bar (hidden by default) -->
+        <div id="progress-wrap" style="display:none; margin-bottom:12px;">
+            <div style="background:var(--s2); border:1px solid var(--b); height:6px; border-radius:3px; overflow:hidden;">
+                <div id="progress-bar" style="height:100%; width:0%; background:var(--live); transition:width 0.2s;"></div>
+            </div>
+            <p id="progress-label" style="color:var(--t-2); font-size:12px; margin:4px 0 0;"></p>
+        </div>
+
+        <button class="v05-btn v05-btn-outline" onclick="uploadDocument()">
+            <span data-icon="upload" data-icon-size="14"></span> {{ t('kb.upload_index') }}
+        </button>
+    </div>
+</div>
+
+<!-- Status bar -->
+<div id="status-bar" style="color:var(--t-2); font-size:0.82rem; margin-bottom:8px; min-height:1.4em;"></div>
+
+<!-- Uploaded documents list -->
+<div class="v05-card" style="padding:0;">
+    <div class="v05-card-header">
+        <span class="v05-card-title">{{ t('kb.indexed_docs') }}</span>
+    </div>
+    <table id="docs-table" style="width:100%;">
+        <thead>
+            <tr>
+                <th>{{ t('kb.col_filename') }}</th>
+                <th>{{ t('kb.col_size') }}</th>
+                <th>{{ t('kb.col_uploaded') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="3" style="color:var(--t-2);">{{ t('common.loading') }}</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+const _doc_i18n = {
+    uploading:      '{{ t("kb.doc_uploading") }}',
+    indexing:       '{{ t("kb.doc_indexing") }}',
+    upload_failed:  '{{ t("kb.doc_upload_failed") }}',
+    upload_ok:      '{{ t("kb.doc_upload_ok") }}',
+    upload_err_file: '{{ t("kb.doc_select_file") }}',
+    upload_err_domain: '{{ t("kb.doc_domain_required") }}',
+};
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;'}[m]));
+}
+function setStatus(msg, color) {
+    const el = document.getElementById('status-bar');
+    el.textContent = '$ ' + msg;
+    el.style.color = color || 'var(--t-2)';
+}
+
+function ageLabel(ts) {
+    if (!ts) return '—';
+    const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+    if (diff < 3600) return Math.round(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.round(diff / 3600) + 'h ago';
+    return Math.round(diff / 86400) + 'd ago';
+}
+
+async function loadDocuments() {
+    try {
+        const r = await fetch('/api/v1/kb/documents', {credentials: 'include'});
+        if (!r.ok) throw new Error(r.statusText);
+        const {documents} = await r.json();
+        const tbody = document.querySelector('#docs-table tbody');
+        if (!documents.length) {
+            tbody.innerHTML = '<tr><td colspan="3" style="color:var(--t-2);">{{ t("kb.no_docs") }}</td></tr>';
+            return;
+        }
+        tbody.innerHTML = documents.map(d => `<tr>
+            <td>${escapeHtml(d.filename)}</td>
+            <td style="color:var(--t-2);">${d.size_kb.toLocaleString()} KB</td>
+            <td style="color:var(--t-3);">${ageLabel(d.uploaded_at)}</td>
+        </tr>`).join('');
+    } catch (e) {
+        setStatus('Failed to load documents: ' + e.message, 'var(--err)');
+    }
+}
+
+async function uploadDocument() {
+    const fileInput = document.getElementById('upload-file');
+    if (!fileInput.files.length) {
+        setStatus(_doc_i18n.upload_err_file, 'var(--err)');
+        return;
+    }
+    const file = fileInput.files[0];
+    const domain = document.getElementById('upload-domain').value;
+    const sourceTag = document.getElementById('upload-source-tag').value.trim();
+    const author = document.getElementById('upload-author').value.trim() || 'Unknown';
+    const publishedAt = document.getElementById('upload-date').value || '1970-01-01';
+
+    const params = new URLSearchParams({domain, author, published_at: publishedAt});
+    if (sourceTag) params.append('source_tag', sourceTag);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const wrap = document.getElementById('progress-wrap');
+    const bar = document.getElementById('progress-bar');
+    const label = document.getElementById('progress-label');
+    wrap.style.display = 'block';
+    bar.style.width = '0%';
+    label.textContent = _doc_i18n.uploading;
+    setStatus(_doc_i18n.uploading + ' ' + escapeHtml(file.name) + '…', 'var(--warn)');
+
+    try {
+        await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/v1/kb/documents/upload?' + params.toString());
+            xhr.withCredentials = true;
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const pct = Math.round(e.loaded / e.total * 100);
+                    bar.style.width = pct + '%';
+                    label.textContent = `${_doc_i18n.uploading} ${pct}%`;
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 202) {
+                    bar.style.width = '100%';
+                    resolve(JSON.parse(xhr.responseText));
+                } else {
+                    let detail = xhr.statusText;
+                    try { detail = JSON.parse(xhr.responseText).detail || detail; } catch {}
+                    reject(new Error(detail));
+                }
+            };
+            xhr.onerror = () => reject(new Error('Network error'));
+            xhr.send(formData);
+        });
+
+        label.textContent = _doc_i18n.indexing;
+        setStatus(_doc_i18n.upload_ok, 'var(--live)');
+        fileInput.value = '';
+        document.getElementById('upload-source-tag').value = '';
+        loadDocuments();
+    } catch (e) {
+        bar.style.background = 'var(--err)';
+        label.textContent = _doc_i18n.upload_failed;
+        setStatus('Upload failed: ' + e.message, 'var(--err)');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadDocuments();
+    // Inject icons after render
+    document.querySelectorAll('[data-icon]').forEach(el => {
+        const name = el.getAttribute('data-icon');
+        const size = el.getAttribute('data-icon-size') || 16;
+        if (window._icon) el.innerHTML = window._icon(name, size);
+    });
+});
+</script>
+{% endblock %}

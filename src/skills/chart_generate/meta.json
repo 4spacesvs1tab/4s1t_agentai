@@ -1,0 +1,65 @@
+{
+  "name": "chart_generate",
+  "version": "1.0.0",
+  "description": "Generate a chart image (PNG) from structured data using matplotlib. Supports bar, line, pie, and scatter chart types. Saves the chart to the data directory and returns the relative file path. Use for visualising analysis results or trends.",
+  "agent_scope": ["data_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 30,
+  "max_memory_mb": 512,
+  "network_allowed": false,
+  "filesystem_access": "read_write",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "chart_type": {
+        "type": "string",
+        "description": "Type of chart: 'bar', 'line', 'pie', or 'scatter'.",
+        "enum": ["bar", "line", "pie", "scatter"]
+      },
+      "labels": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Category labels (x-axis for bar/line/scatter, segment labels for pie)."
+      },
+      "values": {
+        "type": "array",
+        "items": {"type": "number"},
+        "description": "Numeric values corresponding to each label."
+      },
+      "title": {
+        "type": "string",
+        "description": "Chart title displayed above the chart."
+      },
+      "output_filename": {
+        "type": "string",
+        "description": "Filename for the saved PNG (e.g. 'sales_chart.png'). Saved to the data directory."
+      },
+      "x_label": {
+        "type": "string",
+        "description": "Label for the x-axis (not used for pie charts).",
+        "default": ""
+      },
+      "y_label": {
+        "type": "string",
+        "description": "Label for the y-axis (not used for pie charts).",
+        "default": ""
+      }
+    },
+    "required": ["chart_type", "labels", "values", "title", "output_filename"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "file_path": {
+        "type": "string",
+        "description": "Relative path of the saved chart file within the data directory."
+      },
+      "format": {
+        "type": "string",
+        "description": "Output format — always 'png'."
+      }
+    }
+  }
+}

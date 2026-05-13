@@ -1,0 +1,79 @@
+{
+  "name": "business_case",
+  "version": "1.0.0",
+  "description": "Computes NPV, ROI, payback period, and IRR (via bisection) from project cash flows provided by the agent. Also applies a simple proceed/marginal/reject recommendation. Returns a per-year cash flow table, key financial metrics, and a full business case document in markdown.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "project": {
+        "type": "string",
+        "description": "Project name used as the report title"
+      },
+      "initial_investment": {
+        "type": "number",
+        "description": "Upfront cost (positive number, e.g. 100000)"
+      },
+      "annual_benefits": {
+        "type": "array",
+        "items": {"type": "number"},
+        "description": "Net benefit per year [Y1, Y2, ..., Yn]"
+      },
+      "annual_costs": {
+        "type": "array",
+        "items": {"type": "number"},
+        "description": "Ongoing costs per year [Y1, Y2, ..., Yn] — same length as annual_benefits"
+      },
+      "discount_rate": {
+        "type": "number",
+        "description": "Discount rate as a decimal, e.g. 0.08 for 8%. Default: 0.08"
+      },
+      "currency": {
+        "type": "string",
+        "description": "Currency symbol or code, e.g. 'EUR', 'USD', 'PLN'. Default: 'EUR'"
+      },
+      "qualitative_benefits": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Optional list of non-quantifiable benefits"
+      },
+      "qualitative_risks": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Optional list of qualitative risks"
+      }
+    },
+    "required": ["project", "initial_investment", "annual_benefits", "annual_costs"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "npv": {"type": "number"},
+      "roi_pct": {"type": "number"},
+      "payback_period_years": {"type": "number"},
+      "irr_pct": {"type": ["number", "null"]},
+      "recommendation": {"type": "string", "enum": ["proceed", "marginal", "reject"]},
+      "cash_flows": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "year": {"type": "integer"},
+            "benefit": {"type": "number"},
+            "cost": {"type": "number"},
+            "net": {"type": "number"},
+            "cumulative": {"type": "number"}
+          }
+        }
+      },
+      "business_case_markdown": {"type": "string"}
+    }
+  }
+}

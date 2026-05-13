@@ -1,0 +1,59 @@
+{
+  "name": "export_results",
+  "version": "1.0.0",
+  "description": "Export structured data (list of dicts or rows) to a file in CSV, JSON, or plain-text format. Saves to the data directory and returns the relative file path. Use after analysis to persist results for the user or subsequent agents.",
+  "agent_scope": ["data_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 20,
+  "max_memory_mb": 256,
+  "network_allowed": false,
+  "filesystem_access": "read_write",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "data": {
+        "description": "Data to export. For CSV: list of dicts (keys become headers) or list of lists. For JSON: any JSON-serialisable structure. For text: a string.",
+        "oneOf": [
+          {"type": "array"},
+          {"type": "object"},
+          {"type": "string"}
+        ]
+      },
+      "format": {
+        "type": "string",
+        "description": "Output format: 'csv', 'json', or 'text'.",
+        "enum": ["csv", "json", "text"]
+      },
+      "filename": {
+        "type": "string",
+        "description": "Output filename (e.g. 'results.csv'). Extension auto-added if missing."
+      },
+      "headers": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Column headers for CSV when data is a list of lists. Ignored for list-of-dicts (headers taken from keys).",
+        "default": []
+      }
+    },
+    "required": ["data", "format", "filename"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "file_path": {
+        "type": "string",
+        "description": "Relative path of the saved file within the data directory."
+      },
+      "row_count": {
+        "type": "integer",
+        "description": "Number of rows written (for CSV/JSON arrays) or 0 for other types."
+      },
+      "size_bytes": {
+        "type": "integer",
+        "description": "File size in bytes."
+      }
+    }
+  }
+}

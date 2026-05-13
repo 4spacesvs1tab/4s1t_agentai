@@ -1,0 +1,74 @@
+{
+  "name": "plan_ba_project",
+  "version": "1.0.0",
+  "description": "Create and manage Business Analysis projects. Use this to track a BA engagement from initiation through completion — capturing the business problem, methodology, sponsor, and lifecycle status. Call with action='create' to start a new project, 'update' to change fields, 'list' to see all user projects, 'get' to retrieve a specific project by id or name.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["create", "update", "list", "get"],
+        "description": "Operation to perform. Default: 'create'."
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "name": {
+        "type": "string",
+        "description": "Project name. Required for 'create'; used as lookup key for 'get'."
+      },
+      "project_id": {
+        "type": "string",
+        "description": "UUID of the project. Required for 'update'; used for 'get'."
+      },
+      "description": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Short summary of the project scope."
+      },
+      "business_problem": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "The core business problem or opportunity this project addresses."
+      },
+      "methodology": {
+        "type": "string",
+        "enum": ["agile", "waterfall", "hybrid", "kanban"],
+        "description": "BA methodology. Default: 'agile'.",
+        "default": "agile"
+      },
+      "sponsor": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Name or role of the project sponsor."
+      },
+      "status": {
+        "type": "string",
+        "enum": ["active", "on_hold", "completed", "cancelled"],
+        "description": "Project lifecycle status. Default: 'active'.",
+        "default": "active"
+      },
+      "target_completion": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Target completion date in ISO format (YYYY-MM-DD)."
+      }
+    },
+    "required": ["user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "project_id": {"type": "string", "description": "UUID of the affected project."},
+      "project": {"type": "object", "description": "Full project record after the operation."},
+      "projects": {"type": "array", "description": "List of project records (list action)."},
+      "count": {"type": "integer", "description": "Number of projects returned (list action)."},
+      "message": {"type": "string", "description": "Human-readable confirmation."}
+    }
+  }
+}

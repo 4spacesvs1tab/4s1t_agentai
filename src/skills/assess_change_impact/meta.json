@@ -1,0 +1,62 @@
+{
+  "name": "assess_change_impact",
+  "version": "1.0.0",
+  "description": "Assess the downstream impact of a proposed change to a requirement. Performs BFS through the traceability link graph up to 'depth' hops, then surfaces all affected requirements, related decisions, open risks and business rules. Returns a structured impact report with an overall severity score (low/medium/high/critical). Use before approving any change request.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 20,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["assess"],
+        "description": "Must be 'assess'.",
+        "default": "assess"
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "requirement_id": {
+        "type": "string",
+        "description": "ID of the requirement being changed. Required."
+      },
+      "project": {
+        "type": "string",
+        "description": "Project name/slug. Required."
+      },
+      "proposed_change": {
+        "type": "string",
+        "description": "Plain-language description of what will change. Required."
+      },
+      "depth": {
+        "type": "integer",
+        "description": "BFS traversal depth through the link graph. Default 2.",
+        "default": 2,
+        "minimum": 1,
+        "maximum": 10
+      }
+    },
+    "required": ["action", "user_id", "requirement_id", "project", "proposed_change"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "requirement_id": {"type": "string"},
+      "requirement_title": {"type": "string"},
+      "proposed_change": {"type": "string"},
+      "impact_score": {"type": "string", "description": "low | medium | high | critical"},
+      "affected_requirements": {"type": "array"},
+      "affected_decisions": {"type": "array"},
+      "related_risks": {"type": "array"},
+      "affected_rules": {"type": "array"},
+      "impact_report_markdown": {"type": "string", "description": "Full markdown impact report."}
+    }
+  }
+}
