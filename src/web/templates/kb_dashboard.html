@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Knowledge Base — 4S1T{% endblock %}
+{% block page_title %}Knowledge Base{% endblock %}
+{% block topbar_actions %}
+<div style="display:flex; gap:6px;">
+    <a href="/kb/graph" class="v05-btn v05-btn-outline v05-btn-sm" style="text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+        <span data-icon="network" data-icon-size="14"></span> {{ t('kb.graph_3d') }}
+    </a>
+    <button class="v05-btn v05-btn-outline v05-btn-sm" id="btn-ingest-now" onclick="triggerIngest(null)">
+        <span data-icon="download" data-icon-size="14"></span> {{ t('kb.ingest_now') }}
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Page header -->
+<div class="page-header">
+    <div class="page-title">{{ t('kb.overview_title') }}</div>
+    <div class="page-subtitle" id="kb-subtitle">{{ t('common.loading') }}</div>
+</div>
+
+<!-- Domain cards -->
+<div class="kb-cards" id="kb-domain-cards">
+    <div style="color:var(--t-3); font-size:13px; grid-column:1/-1;">{{ t('common.loading') }}</div>
+</div>
+
+<!-- Status bar -->
+<div id="status-bar" style="color:var(--t-2); font-size:0.82rem; min-height:1.4em;"></div>
+
+<script>
+const _kb_i18n = {
+    health_live:      '{{ t("kb.health_live") }}',
+    health_stale:     '{{ t("kb.health_stale") }}',
+    health_old:       '{{ t("kb.health_old") }}',
+    no_domains:       '{{ t("kb.no_domains") }}',
+    stat_chunks:      '{{ t("kb.stat_chunks") }}',
+    stat_sources:     '{{ t("kb.stat_sources") }}',
+    subtitle_chunks:  '{{ t("kb.subtitle_chunks") }}',
+    subtitle_domains: '{{ t("kb.subtitle_domains") }}',
+    subtitle_sync:    '{{ t("kb.subtitle_last_sync") }}',
+    kb_loaded:        '{{ t("kb.kb_loaded") }}',
+    kb_load_err:      '{{ t("kb.kb_load_err") }}',
+    ingest_starting:  '{{ t("kb.kb_ingest_starting") }}',
+    ingest_all:       '{{ t("kb.kb_ingest_all_suffix") }}',
+    ingest_ok:        '{{ t("kb.kb_ingest_ok") }}',
+    briefs_starting:  '{{ t("kb.kb_briefs_starting") }}',
+    briefs_ok:        '{{ t("kb.kb_briefs_ok") }}',
+};
+
+const DOMAIN_COLORS = {
+    {%- for d in kb_domains %}
+    '{{ d.id }}': '{{ d.color }}',
+    {%- endfor %}
+};
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;'}[m]));
+}
+
+function setStatus(msg, color) {
+    const el = document.getElementById('status-bar');
+    el.textContent = '$ ' + msg;
+    el.style.color = color || 'var(--t-2)';
+}
+
+function ageLabel(ts) {
+    if (!ts) return 'never';
+    const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+    if (diff < 3600) return Math.round(diff/60) + 'm ago';
+    if (diff < 86400) return Math.round(diff/3600) + 'h ago';
+    return Math.round(diff/86400) + 'd ago';
+}
+
+function healthClasses(ts) {
+    if (!ts) return { badge: 'health-stale', label: _kb_i18n.health_stale };
+    const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+    if (diff < 86400) return { badge: 'health-ok', label: _kb_i18n.health_live };
+    if (diff < 86400*3) return { badge: 'health-warn', label: _kb_i18n.health_stale };
+    return { badge: 'health-stale', label: _kb_i18n.health_old };
+}
+
+function domainLabel(d) {
+    const map = {
+        {%- for dom in kb_domains %}
+        '{{ dom.id }}': '{{ dom.display_name | e }}',
+        {%- endfor %}
+    };
+    return map[d] || d.charAt(0).toUpperCase() + d.slice(1);
+}
+
+function renderDomains(byDomain, byAccount) {
+    const grid = document.getElementById('kb-domain-cards');
+    if (!byDomain.length) {
+        grid.innerHTML = `<div style="color:var(--t-3); font-size:13px; grid-column:1/-1;">${_kb_i18n.no_domains}</div>`;
+        return;
+    }
+
+    // Build account index per domain
+    const accByDomain = {};
+    for (const acc of byAccount) {
+        for (const d of (acc.domains || '').split('|')) {
+            const key = d.trim();
+            if (!key) continue;
+            if (!accByDomain[key]) accByDomain[key] = [];
+            accByDomain[key].push(acc);
+        }
+    }
+
+    const totalChunks = byDomain.reduce((s, x) => s + (x.item_count || 0), 0);
+    const lastSync = byDomain
+        .filter(d => d.last_ingested)
+        .sort((a, b) => new Date(b.last_ingested) - new Date(a.last_ingested))[0];
+    document.getElementById('kb-subtitle').textContent =
+        totalChunks.toLocaleString() + ' ' + _kb_i18n.subtitle_chunks + ' ' + byDomain.length + ' ' + _kb_i18n.subtitle_domains +
+        (lastSync ? ' · ' + _kb_i18n.subtitle_sync + ' ' + ageLabel(lastSync.last_ingested) : '');
+
+    grid.innerHTML = byDomain.map(dom => {
+        const hc = healthClasses(dom.last_ingested);
+        const color = DOMAIN_COLORS[dom.domain] || 'var(--t-3)';
+        const accs = accByDomain[dom.domain] || [];
+        const label = domainLabel(dom.domain);
+        const names = accs.slice(0, 2).map(a => escapeHtml(a.display_name || a.id)).join(' · ');
+        const more = accs.length > 2 ? ` · ${accs.length - 2} more` : '';
+        return `<div class="domain-card" onclick="window.location='/kb/accounts?domain=${escapeHtml(dom.domain)}'">
+            <div class="domain-card-top">
+                <div class="domain-indicator" style="background:${color};"></div>
+                <div class="domain-name active">${escapeHtml(label)}</div>
+                <div class="health-badge ${hc.badge}">${hc.label}</div>
+            </div>
+            <div class="domain-stats">
+                <div>
+                    <div class="domain-stat-val">${(dom.item_count||0).toLocaleString()}</div>
+                    <div class="domain-stat-key">${_kb_i18n.stat_chunks}</div>
+                </div>
+                <div>
+                    <div class="domain-stat-val" style="font-size:16px;">${dom.account_count}</div>
+                    <div class="domain-stat-key">${_kb_i18n.stat_sources}</div>
+                </div>
+            </div>
+            <div class="domain-last">${names ? names + more : '—'}</div>
+        </div>`;
+    }).join('');
+}
+
+async function triggerIngest(domain) {
+    setStatus(_kb_i18n.ingest_starting + (domain ? ' for ' + domain : ' ' + _kb_i18n.ingest_all) + '…', 'var(--warn)');
+    try {
+        const r = await fetch('/api/v1/kb/ingest', {
+            method: 'POST', credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({domain: domain || null, max_items_per_platform: 200})
+        });
+        const d = await r.json();
+        setStatus(d.message || _kb_i18n.ingest_ok, 'var(--live)');
+    } catch(e) {
+        setStatus('Ingest failed: ' + e.message, 'var(--err)');
+    }
+}
+
+async function triggerBriefs(domain) {
+    setStatus(_kb_i18n.briefs_starting + (domain ? ' for ' + domain : ' ' + _kb_i18n.ingest_all) + '…', 'var(--warn)');
+    try {
+        const r = await fetch('/api/v1/kb/generate-briefs', {
+            method: 'POST', credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({domain: domain || null})
+        });
+        const d = await r.json();
+        setStatus(d.message || _kb_i18n.briefs_ok, 'var(--live)');
+    } catch(e) {
+        setStatus('Failed: ' + e.message, 'var(--err)');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const r = await fetch('/api/v1/kb/stats', {credentials:'include'});
+        if (!r.ok) throw new Error(r.statusText);
+        const d = await r.json();
+        renderDomains(d.by_domain || [], d.by_account || []);
+        setStatus((d.by_domain||[]).length + ' ' + _kb_i18n.kb_loaded);
+    } catch(e) {
+        setStatus('Failed to load stats: ' + e.message, 'var(--err)');
+        document.getElementById('kb-subtitle').textContent = _kb_i18n.kb_load_err;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,56 @@
+{
+  "name": "stakeholder_analysis",
+  "version": "1.0.0",
+  "description": "Format a RACI matrix from structured stakeholder and task assignments. The calling agent reasons about the assignments; this skill validates the structure and returns a properly formatted RACI matrix as markdown and JSON. Also returns a stakeholder register summary.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "process_name": {
+        "type": "string",
+        "description": "Name of the process or project being analysed"
+      },
+      "roles": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "List of stakeholder roles/titles (columns of the RACI matrix)"
+      },
+      "tasks": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "List of tasks or activities (rows of the RACI matrix)"
+      },
+      "assignments": {
+        "type": "array",
+        "description": "RACI assignments per task",
+        "items": {
+          "type": "object",
+          "properties": {
+            "task": {"type": "string"},
+            "R": {"type": "string", "description": "Responsible role"},
+            "A": {"type": "string", "description": "Accountable role"},
+            "C": {"type": "array", "items": {"type": "string"}, "description": "Consulted roles"},
+            "I": {"type": "array", "items": {"type": "string"}, "description": "Informed roles"}
+          },
+          "required": ["task"]
+        }
+      }
+    },
+    "required": ["process_name", "roles", "tasks", "assignments"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "raci_markdown": {"type": "string", "description": "RACI matrix as markdown table"},
+      "raci_json": {"type": "object", "description": "RACI matrix as structured JSON"},
+      "validation_warnings": {"type": "array", "items": {"type": "string"}}
+    }
+  }
+}

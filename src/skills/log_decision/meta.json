@@ -1,0 +1,85 @@
+{
+  "name": "log_decision",
+  "version": "1.0.0",
+  "description": "Log, list, and supersede BA project decisions with rationale and BABOK context. Use this to build a traceable decision log for a project. Before calling 'add', optionally call knowledge_base_search with source='babok' and pass relevant results as babok_context. Actions: 'add' records a new decision, 'list' retrieves decisions (filterable by project and status), 'supersede' marks an old decision as replaced by a newer one, 'get' retrieves a single decision by id.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["add", "list", "supersede", "get"],
+        "description": "Operation to perform. Default: 'add'."
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "project": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Project name this decision belongs to. Optional but strongly recommended."
+      },
+      "decision": {
+        "type": "string",
+        "description": "The decision statement. Required for 'add'."
+      },
+      "rationale": {
+        "type": "string",
+        "description": "Why this decision was made. Required for 'add'."
+      },
+      "alternatives": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "List of alternative options that were considered and rejected."
+      },
+      "owner": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Person or role accountable for this decision."
+      },
+      "babok_context": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title": {"type": "string"},
+            "excerpt": {"type": "string"}
+          }
+        },
+        "description": "Relevant BABOK excerpts from knowledge_base_search to ground the decision in best practices."
+      },
+      "decision_id": {
+        "type": "string",
+        "description": "UUID of the decision. Required for 'supersede' and 'get'."
+      },
+      "new_decision_id": {
+        "type": "string",
+        "description": "UUID of the decision that supersedes the current one. Required for 'supersede'."
+      },
+      "filter_status": {
+        "type": "string",
+        "enum": ["active", "all", "superseded", "reverted"],
+        "description": "For 'list': filter by status. Default: 'active'.",
+        "default": "active"
+      }
+    },
+    "required": ["user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "decision_id": {"type": "string", "description": "UUID of the affected decision."},
+      "record": {"type": "object", "description": "Full decision record after 'add'."},
+      "decision": {"type": "object", "description": "Full decision record after 'get'."},
+      "decisions": {"type": "array", "description": "List of decision records (list action)."},
+      "count": {"type": "integer", "description": "Number of decisions returned (list action)."},
+      "message": {"type": "string", "description": "Human-readable confirmation."}
+    }
+  }
+}

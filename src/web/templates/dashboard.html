@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — 4S1T{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block topbar_actions %}
+<div style="display:flex; gap:6px;">
+    <button class="v05-btn v05-btn-outline v05-btn-sm" id="btn-ingest-all" onclick="triggerIngestAll()">
+        <span data-icon="download" data-icon-size="14"></span> {{ t('dashboard.ingest_all') }}
+    </button>
+    <button class="v05-btn v05-btn-outline v05-btn-sm" id="btn-gen-briefs" onclick="triggerBriefs()">
+        <span data-icon="sparkles" data-icon-size="14"></span> {{ t('dashboard.generate_briefs') }}
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Page header -->
+<div class="page-header">
+    <div class="page-header-row">
+        <div>
+            <div class="page-title" id="dash-greeting">Good morning, {{ user.username if user else 'there' }}</div>
+            <div class="page-subtitle" id="dash-subtitle">{{ t('common.loading') }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Stat cards -->
+<div class="grid-4" style="margin-bottom:20px;">
+    <div class="stat-card">
+        <div class="stat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
+        </div>
+        <div class="stat-value" id="stat-chunks">—</div>
+        <div class="stat-label">{{ t('dashboard.kb_chunks_label') }}</div>
+        <div class="stat-change neutral" id="stat-chunks-change">—</div>
+    </div>
+    <div class="stat-card" onclick="window.location='/kb'" style="cursor:pointer;">
+        <div class="stat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="stat-value" id="stat-sources">—</div>
+        <div class="stat-label">{{ t('dashboard.sources_label') }}</div>
+        <div class="stat-change neutral" id="stat-domains-change">—</div>
+    </div>
+    <div class="stat-card" onclick="window.location='/kb/briefs'" style="cursor:pointer;">
+        <div class="stat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div class="stat-value" id="stat-briefs">—</div>
+        <div class="stat-label">{{ t('dashboard.briefs_today_label') }}</div>
+        <div class="stat-change neutral" id="stat-briefs-change">—</div>
+    </div>
+    <div class="stat-card" onclick="window.location='/kb/discovery'" style="cursor:pointer;">
+        <div class="stat-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div class="stat-value" id="stat-discovery">—</div>
+        <div class="stat-label">{{ t('dashboard.discovery_label') }}</div>
+        <div class="stat-change down" id="stat-discovery-change">{{ t('dashboard.awaiting_review') }}</div>
+    </div>
+</div>
+
+<!-- Domain Status -->
+<div class="page-header-row" style="margin-bottom:12px;">
+    <div style="font-size:13px; font-weight:700;">{{ t('dashboard.domain_status') }}</div>
+    <a href="/kb" class="v05-btn v05-btn-ghost v05-btn-sm" style="text-decoration:none;">{{ t('dashboard.view_all') }} →</a>
+</div>
+<div class="domain-grid" id="domain-grid" style="margin-bottom:24px;">
+    <div style="color:var(--t-3); font-size:13px; grid-column:1/-1;">{{ t('common.loading') }}</div>
+</div>
+
+<!-- Activity + System -->
+<div class="grid-2">
+    <div class="v05-card">
+        <div class="v05-card-header">
+            <span class="v05-card-title">{{ t('dashboard.recent_activity') }}</span>
+        </div>
+        <div class="v05-card-body" id="activity-list">
+            <div style="color:var(--t-3); font-size:13px;">{{ t('common.loading') }}</div>
+        </div>
+    </div>
+
+    <div class="v05-card">
+        <div class="v05-card-header">
+            <span class="v05-card-title">{{ t('dashboard.system') }}</span>
+        </div>
+        <div class="v05-card-body" id="system-status-list">
+            <div class="settings-row">
+                <div class="settings-row-info">
+                    <div class="settings-row-label">Container</div>
+                    <div class="settings-row-desc">4s1t-agent · port 8000</div>
+                </div>
+                <span class="tag tag-live" id="sys-container">Checking…</span>
+            </div>
+            <div class="settings-row">
+                <div class="settings-row-info">
+                    <div class="settings-row-label">ChromaDB</div>
+                    <div class="settings-row-desc">Vector store</div>
+                </div>
+                <span class="tag tag-live" id="sys-chroma">Checking…</span>
+            </div>
+            <div class="settings-row">
+                <div class="settings-row-info">
+                    <div class="settings-row-label">Tor proxy</div>
+                    <div class="settings-row-desc">{{ tor_proxy }}</div>
+                </div>
+                <span class="tag tag-live" id="sys-tor">Checking…</span>
+            </div>
+            <div class="settings-row">
+                <div class="settings-row-info">
+                    <div class="settings-row-label">Executor</div>
+                    <div class="settings-row-desc">4s1t-executor · port 8001</div>
+                </div>
+                <span class="tag tag-warn" id="sys-executor">Stopped</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const _d_i18n = {
+    greeting_morning:   '{{ t("dashboard.greeting_morning") }}',
+    greeting_afternoon: '{{ t("dashboard.greeting_afternoon") }}',
+    greeting_evening:   '{{ t("dashboard.greeting_evening") }}',
+    all_ok:             '{{ t("dashboard.all_ok") }}',
+    sys_degraded:       '{{ t("dashboard.sys_degraded") }}',
+    awaiting_review:    '{{ t("dashboard.awaiting_review") }}',
+    all_reviewed:       '{{ t("dashboard.all_reviewed") }}',
+    generated_today:    '{{ t("dashboard.generated_today") }}',
+    none_today:         '{{ t("dashboard.none_today") }}',
+    domains_suffix:     '{{ t("dashboard.domains_suffix") }}',
+    domains_active:     '{{ t("dashboard.domains_active") }}',
+    no_activity:        '{{ t("dashboard.no_activity") }}',
+    last_ingested:      '{{ t("dashboard.last_ingested") }}',
+    sources_suffix:     '{{ t("dashboard.sources_suffix") }}',
+    stat_chunks:        '{{ t("kb.stat_chunks") }}',
+    stat_sources:       '{{ t("kb.stat_sources") }}',
+    health_live:        '{{ t("kb.health_live") }}',
+    health_stale:       '{{ t("kb.health_stale") }}',
+    health_old:         '{{ t("kb.health_old") }}',
+    no_domains:         '{{ t("kb.no_domains") }}',
+    days: ['{{ t("dashboard.day_sun") }}','{{ t("dashboard.day_mon") }}','{{ t("dashboard.day_tue") }}','{{ t("dashboard.day_wed") }}','{{ t("dashboard.day_thu") }}','{{ t("dashboard.day_fri") }}','{{ t("dashboard.day_sat") }}'],
+    months: ['{{ t("dashboard.month_jan") }}','{{ t("dashboard.month_feb") }}','{{ t("dashboard.month_mar") }}','{{ t("dashboard.month_apr") }}','{{ t("dashboard.month_may") }}','{{ t("dashboard.month_jun") }}','{{ t("dashboard.month_jul") }}','{{ t("dashboard.month_aug") }}','{{ t("dashboard.month_sep") }}','{{ t("dashboard.month_oct") }}','{{ t("dashboard.month_nov") }}','{{ t("dashboard.month_dec") }}'],
+    starting:           '{{ t("dashboard.starting") }}',
+    ingesting:          '{{ t("dashboard.ingesting") }}',
+    loading_status:     '{{ t("dashboard.loading_status") }}',
+};
+
+const DOMAIN_COLORS = {
+    {%- for d in kb_domains %}
+    '{{ d.id }}': '{{ d.color }}',
+    {%- endfor %}
+};
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;'}[m]));
+}
+
+function ageLabel(ts) {
+    if (!ts) return 'never';
+    const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+    if (diff < 3600) return Math.round(diff/60) + 'm ago';
+    if (diff < 86400) return Math.round(diff/3600) + 'h ago';
+    return Math.round(diff/86400) + 'd ago';
+}
+
+function healthClasses(ts) {
+    if (!ts) return { badge: 'health-stale', label: _d_i18n.health_stale };
+    const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+    if (diff < 86400) return { badge: 'health-ok', label: _d_i18n.health_live };
+    if (diff < 86400*3) return { badge: 'health-warn', label: _d_i18n.health_stale };
+    return { badge: 'health-stale', label: _d_i18n.health_old };
+}
+
+function domainLabel(d) {
+    const map = {
+        {%- for dom in kb_domains %}
+        '{{ dom.id }}': '{{ dom.display_name | e }}',
+        {%- endfor %}
+    };
+    return map[d] || d.charAt(0).toUpperCase() + d.slice(1);
+}
+
+function initGreeting() {
+    const h = new Date().getHours();
+    const greeting = h < 12 ? _d_i18n.greeting_morning : h < 18 ? _d_i18n.greeting_afternoon : _d_i18n.greeting_evening;
+    const rawUsername = document.getElementById('dash-greeting').textContent.split(', ')[1] || '';
+    const username = rawUsername.charAt(0).toUpperCase() + rawUsername.slice(1);
+    document.getElementById('dash-greeting').textContent = greeting + ', ' + username;
+
+    const now = new Date();
+    document.getElementById('dash-subtitle').textContent =
+        _d_i18n.days[now.getDay()] + ', ' + now.getDate() + ' ' + _d_i18n.months[now.getMonth()] + ' ' + now.getFullYear() + ' · ' + _d_i18n.loading_status;
+}
+
+async function loadStats() {
+    try {
+        const r = await fetch('/api/v1/kb/stats', {credentials:'include'});
+        if (!r.ok) throw new Error(r.statusText);
+        const d = await r.json();
+
+        const totalChunks = (d.by_domain || []).reduce((s, x) => s + (x.item_count || 0), 0);
+        document.getElementById('stat-chunks').textContent = totalChunks.toLocaleString();
+        document.getElementById('stat-chunks-change').textContent = (d.by_domain||[]).length + ' ' + _d_i18n.domains_suffix;
+        document.getElementById('stat-chunks-change').className = 'stat-change neutral';
+
+        const totalAccounts = (d.by_domain || []).reduce((s, x) => s + (x.account_count || 0), 0);
+        document.getElementById('stat-sources').textContent = totalAccounts;
+        document.getElementById('stat-domains-change').textContent = (d.by_domain||[]).length + ' ' + _d_i18n.domains_active;
+
+        renderDomains(d.by_domain || [], d.by_account || []);
+    } catch(e) {
+        console.error('Stats error', e);
+    }
+}
+
+async function loadDiscovery() {
+    try {
+        const r = await fetch('/api/v1/kb/discovery?status_filter=pending&min_mentions=3', {credentials:'include'});
+        if (!r.ok) return;
+        const d = await r.json();
+        const count = (d.candidates || []).length;
+        document.getElementById('stat-discovery').textContent = count;
+        document.getElementById('stat-discovery-change').textContent = count > 0 ? _d_i18n.awaiting_review : _d_i18n.all_reviewed;
+        document.getElementById('stat-discovery-change').className = 'stat-change ' + (count > 0 ? 'down' : 'neutral');
+    } catch(e) {
+        document.getElementById('stat-discovery').textContent = '—';
+    }
+}
+
+async function loadBriefs() {
+    try {
+        const r = await fetch('/api/v1/kb/briefs', {credentials:'include'});
+        if (!r.ok) return;
+        const d = await r.json();
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '_');
+        const todayBriefs = (d.briefs || []).filter(b => b.date === today);
+        const count = todayBriefs.length;
+        document.getElementById('stat-briefs').textContent = count;
+        document.getElementById('stat-briefs-change').textContent = count > 0 ? _d_i18n.generated_today : _d_i18n.none_today;
+        document.getElementById('stat-briefs-change').className = 'stat-change ' + (count > 0 ? 'up' : 'neutral');
+    } catch(e) {
+        document.getElementById('stat-briefs').textContent = '—';
+    }
+}
+
+function renderDomains(byDomain, byAccount) {
+    const grid = document.getElementById('domain-grid');
+    if (!byDomain.length) {
+        grid.innerHTML = `<div style="color:var(--t-3); font-size:13px; grid-column:1/-1;">${_d_i18n.no_domains}</div>`;
+        return;
+    }
+    const accByDomain = {};
+    for (const acc of byAccount) {
+        for (const d of (acc.domains || '').split('|')) {
+            const key = d.trim();
+            if (!key) continue;
+            if (!accByDomain[key]) accByDomain[key] = [];
+            accByDomain[key].push(acc);
+        }
+    }
+    grid.innerHTML = byDomain.map(dom => {
+        const hc = healthClasses(dom.last_ingested);
+        const color = DOMAIN_COLORS[dom.domain] || 'var(--t-3)';
+        const accs = accByDomain[dom.domain] || [];
+        const ageLbl = ageLabel(dom.last_ingested);
+        const label = domainLabel(dom.domain);
+        const names = accs.slice(0, 2).map(a => escapeHtml(a.display_name || a.id)).join(' · ');
+        const more = accs.length > 2 ? ` · ${accs.length - 2} more` : '';
+        const ageHtml = hc.badge === 'health-ok'
+            ? `<strong>${ageLbl}</strong>`
+            : `<strong class="stale">${ageLbl}</strong>`;
+        return `<div class="domain-card" onclick="window.location='/kb'">
+            <div class="domain-card-top">
+                <div class="domain-indicator" style="background:${color};"></div>
+                <div class="domain-name active">${escapeHtml(label)}</div>
+                <div class="health-badge ${hc.badge}">${hc.label}</div>
+            </div>
+            <div class="domain-stats">
+                <div>
+                    <div class="domain-stat-val">${(dom.item_count||0).toLocaleString()}</div>
+                    <div class="domain-stat-key">${_d_i18n.stat_chunks}</div>
+                </div>
+                <div>
+                    <div class="domain-stat-val" style="font-size:16px;color:var(--t-2);">${dom.account_count} ${_d_i18n.sources_suffix}</div>
+                    <div class="domain-stat-key">${_d_i18n.stat_sources}</div>
+                </div>
+            </div>
+            <div class="domain-last">${_d_i18n.last_ingested} ${ageHtml}${names ? ' · ' + names + more : ''}</div>
+        </div>`;
+    }).join('');
+}
+
+function renderActivity(byDomain, byAccount) {
+    const list = document.getElementById('activity-list');
+    if (!byDomain.length) {
+        list.innerHTML = `<div style="color:var(--t-3); font-size:13px;">${_d_i18n.no_activity}</div>`;
+        return;
+    }
+    // Build activity from recent domain ingestions, sorted by last_ingested desc
+    const sorted = [...byDomain]
+        .filter(d => d.last_ingested)
+        .sort((a, b) => new Date(b.last_ingested) - new Date(a.last_ingested))
+        .slice(0, 5);
+    list.innerHTML = sorted.map(dom => {
+        const color = DOMAIN_COLORS[dom.domain] || 'var(--t-3)';
+        const ageLbl = ageLabel(dom.last_ingested);
+        const label = domainLabel(dom.domain);
+        return `<div class="activity-item">
+            <div class="activity-dot" style="background:${color};"></div>
+            <div class="activity-text">${(dom.item_count||0).toLocaleString()} chunks — <strong>${escapeHtml(label)}</strong></div>
+            <div class="activity-time">${ageLbl}</div>
+        </div>`;
+    }).join('');
+}
+
+async function loadSystemStatus() {
+    try {
+        const r = await fetch('/api/v1/status', {credentials:'include'});
+        if (!r.ok) throw new Error(r.statusText);
+        const data = await r.json();
+
+        const c = data.components || {};
+        function setTag(id, status) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const ok = status === 'operational' || status === 'ok' || status === true || status === 'active';
+            const warn = status === 'degraded' || status === 'stopped' || status === false;
+            el.textContent = ok ? (id === 'sys-tor' ? 'Active' : id === 'sys-container' ? 'Healthy' : 'OK')
+                            : warn ? (id === 'sys-executor' ? 'Stopped' : 'Degraded') : 'Unknown';
+            el.className = 'tag ' + (ok ? 'tag-live' : warn ? 'tag-warn' : 'tag-err');
+        }
+        setTag('sys-container', c.api || 'operational');
+        setTag('sys-chroma', c.chromadb || 'operational');
+        setTag('sys-tor', c.tor || 'active');
+        setTag('sys-executor', c.executor || 'stopped');
+
+        // Update subtitle with system status
+        const allOk = ['api','chromadb'].every(k => !c[k] || c[k] === 'operational' || c[k] === 'ok');
+        const now = new Date();
+        document.getElementById('dash-subtitle').textContent =
+            _d_i18n.days[now.getDay()] + ', ' + now.getDate() + ' ' + _d_i18n.months[now.getMonth()] + ' ' + now.getFullYear() +
+            ' · ' + (allOk ? _d_i18n.all_ok : _d_i18n.sys_degraded);
+    } catch(e) {
+        console.error('Status error', e);
+        const now = new Date();
+        document.getElementById('dash-subtitle').textContent =
+            _d_i18n.days[now.getDay()] + ', ' + now.getDate() + ' ' + _d_i18n.months[now.getMonth()] + ' ' + now.getFullYear();
+    }
+}
+
+async function triggerIngestAll() {
+    const btn = document.getElementById('btn-ingest-all');
+    btn.disabled = true;
+    btn.textContent = _d_i18n.starting;
+    try {
+        const r = await fetch('/api/v1/kb/ingest', {
+            method:'POST', credentials:'include',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({domain: null, max_items_per_platform: 200})
+        });
+        const d = await r.json();
+        btn.textContent = _d_i18n.ingesting;
+        setTimeout(() => { btn.disabled = false; btn.innerHTML = '<span data-icon="download" data-icon-size="14"></span> {{ t("dashboard.ingest_all") }}'; }, 3000);
+    } catch(e) {
+        btn.disabled = false;
+        btn.innerHTML = '<span data-icon="download" data-icon-size="14"></span> {{ t("dashboard.ingest_all") }}';
+    }
+}
+
+async function triggerBriefs() {
+    const btn = document.getElementById('btn-gen-briefs');
+    btn.disabled = true;
+    btn.textContent = _d_i18n.starting;
+    try {
+        await fetch('/api/v1/kb/generate-briefs', {
+            method:'POST', credentials:'include',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({domain: null})
+        });
+        setTimeout(() => { btn.disabled = false; btn.innerHTML = '<span data-icon="sparkles" data-icon-size="14"></span> {{ t("dashboard.generate_briefs") }}'; }, 3000);
+    } catch(e) {
+        btn.disabled = false;
+        btn.innerHTML = '<span data-icon="sparkles" data-icon-size="14"></span> {{ t("dashboard.generate_briefs") }}';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    initGreeting();
+    loadSystemStatus();
+
+    try {
+        const r = await fetch('/api/v1/kb/stats', {credentials:'include'});
+        if (r.ok) {
+            const d = await r.json();
+            const byDomain = d.by_domain || [];
+            const byAccount = d.by_account || [];
+
+            const totalChunks = byDomain.reduce((s, x) => s + (x.item_count || 0), 0);
+            document.getElementById('stat-chunks').textContent = totalChunks.toLocaleString();
+            document.getElementById('stat-chunks-change').textContent = byDomain.length + ' ' + _d_i18n.domains_suffix;
+            document.getElementById('stat-chunks-change').className = 'stat-change neutral';
+
+            const totalAccounts = byDomain.reduce((s, x) => s + (x.account_count || 0), 0);
+            document.getElementById('stat-sources').textContent = totalAccounts;
+            document.getElementById('stat-domains-change').textContent = byDomain.length + ' ' + _d_i18n.domains_active;
+
+            renderDomains(byDomain, byAccount);
+            renderActivity(byDomain, byAccount);
+        }
+    } catch(e) { console.error(e); }
+
+    loadDiscovery();
+    loadBriefs();
+});
+</script>
+{% endblock %}

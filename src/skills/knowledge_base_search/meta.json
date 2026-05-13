@@ -1,0 +1,130 @@
+{
+  "name": "knowledge_base_search",
+  "version": "2.0.0",
+  "description": "Search the Knowledge Base using semantic similarity (ChromaDB + bge-m3 embeddings). Searches indexed content from followed accounts across all platforms. Supports domain filtering, account-scoped queries, time ranges, language filtering, and source-type filtering. Always prefer this over web_search for questions about sources you follow. Results include published_at age for freshness assessment.",
+  "agent_scope": ["ba_agent", "research_agent", "synthesis_agent", "kb_monitor_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 60,
+  "max_memory_mb": 512,
+  "network_allowed": true,
+  "filesystem_access": "read",
+  "secrets_required": ["NANO_GPT_API_KEY"],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Semantic search query. Write as a natural language question or topic description."
+      },
+      "domain": {
+        "oneOf": [
+          {"type": "string"},
+          {"type": "array", "items": {"type": "string"}},
+          {"type": "null"}
+        ],
+        "description": "KB knowledge domain(s) to scope the search. Domain IDs are defined in kb_domains.yaml. Omit or null to search all domains. Multiple domains use OR logic.",
+        "default": null
+      },
+      "account": {
+        "oneOf": [
+          {"type": "string"},
+          {"type": "array", "items": {"type": "string"}},
+          {"type": "null"}
+        ],
+        "description": "Filter results to specific account ID(s) from kb_accounts. Use when user asks 'what did [person] say about...'. Omit to search all accounts.",
+        "default": null
+      },
+      "source": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Filter by content source type: 'website', 'twitter', 'nostr', 'youtube', 'podcast', 'rumble', 'manual', or any custom source_tag defined in kb_domains.yaml bootstrap_sources.",
+        "default": null
+      },
+      "since": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Return only content published after this date. Accepts: ISO 8601 date ('2025-01-01'), relative shorthand ('7d', '30d', '6m', '1y', '24h'), or null for no filter.",
+        "default": null
+      },
+      "until": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Return only content published before this date. ISO 8601 or relative shorthand. Null for no filter.",
+        "default": null
+      },
+      "language": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Filter results to a specific content language. ISO 639-1 code: 'en', 'pl'. Null returns all languages. Note: bge-m3 handles cross-lingual semantic matching natively — this filter restricts result language, not query language.",
+        "default": null
+      },
+      "collection": {
+        "type": "string",
+        "enum": ["kb_content", "kb_summaries", "kb_graph_ctx"],
+        "description": "ChromaDB collection to search. 'kb_content' (default) = full text corpus. 'kb_summaries' = per-article summaries (faster, good for brief generation). 'kb_graph_ctx' = account descriptions.",
+        "default": "kb_content"
+      },
+      "n_results": {
+        "type": "integer",
+        "description": "Number of results to return. Default 20. Max 50.",
+        "default": 20,
+        "minimum": 1,
+        "maximum": 50
+      },
+      "sort_by": {
+        "type": "string",
+        "enum": ["relevance", "date_asc", "date_desc"],
+        "description": "Result ordering. 'date_desc' (default) = newest first — always use this for 'latest', 'recent', 'what happened' queries. 'relevance' = by semantic similarity score — use for 'what does X say about Y' deep-dive queries. 'date_asc' = oldest first, for trend/evolution queries.",
+        "default": "date_desc"
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User whose KB to search. Defaults to 'default'. Set from calling session context to enforce user isolation (G27).",
+        "default": "default"
+      }
+    },
+    "required": ["query"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "results": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "text": {"type": "string", "description": "Retrieved text chunk"},
+            "source_url": {"type": "string"},
+            "author": {"type": "string"},
+            "account_id": {"type": "string"},
+            "domain": {"type": "string"},
+            "platform": {"type": "string"},
+            "published_at": {"type": "string", "description": "ISO 8601 publication date"},
+            "published_age": {"type": "string", "description": "Human-readable age: '3 days ago', '6 months ago'. Include in answers for freshness context (G19)."},
+            "score": {"type": "number", "description": "Cosine similarity score 0.0-1.0 (higher = more relevant)"},
+            "source": {"type": "string", "description": "Source tag: 'babok', 'website', 'twitter', etc."},
+            "contradicts_chunk_id": {"type": "string", "description": "If non-empty: the ID of a known contradicting chunk from a different account (G8). Use to surface 'Sources disagree on this' warnings in UC8."}
+          }
+        }
+      },
+      "query_meta": {
+        "type": "object",
+        "properties": {
+          "account_found": {
+            "type": "boolean",
+            "description": "False if account filter was specified but no matching account exists in KB. When False: do NOT report 'no results' — instead inform user the account is not tracked and offer to add it (G24)."
+          },
+          "extended_window": {
+            "type": "boolean",
+            "description": "True if skill auto-retried with wider time range because fewer than 3 results were found (G10)."
+          },
+          "result_count": {"type": "integer"},
+          "collection_searched": {"type": "string"},
+          "domain_filter_applied": {"type": "string"},
+          "time_filter_applied": {"type": "boolean"},
+          "resolved_account": {
+            "oneOf": [{"type": "string"}, {"type": "null"}],
+            "description": "Non-null when the account param was fuzzy-resolved to a different ID: e.g. '\"Macro Alf\"→macro_trading_floor(0.95)'. Mention this in your answer so the user knows which account was searched."
+          }
+        }
+      }
+    }
+  }
+}

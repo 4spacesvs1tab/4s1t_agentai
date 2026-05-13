@@ -1,0 +1,75 @@
+{
+  "name": "narrative_evolution",
+  "version": "1.0.0",
+  "description": "Track how the narrative around a topic or source has evolved over time. Clusters KB content into monthly periods and summarises the dominant stance, key claims, and tone for each period. Use for questions like: 'How has the Fed narrative shifted over 6 months?', 'Has [source] changed their view on [topic]?', 'What was the consensus on [topic] in early 2025 vs now?'. Returns a timeline of monthly summaries. Token-intensive — use on-demand only, not in loops.",
+  "agent_scope": ["research_agent", "synthesis_agent", "ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 120,
+  "max_memory_mb": 256,
+  "network_allowed": true,
+  "filesystem_access": "read",
+  "secrets_required": ["NANO_GPT_API_KEY"],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "topic": {
+        "type": "string",
+        "description": "Free-text topic or question to track (e.g. 'Fed rate cuts', 'central bank policy shift', 'AI regulation')."
+      },
+      "timeframe": {
+        "type": "string",
+        "description": "Lookback window. Options: '1m' (1 month), '3m' (3 months), '6m' (6 months, default), '1y' (1 year).",
+        "enum": ["1m", "3m", "6m", "1y"],
+        "default": "6m"
+      },
+      "account": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Optional: restrict to a single source account_id (e.g. 'jeff_snider'). Leave null to query all sources for the topic.",
+        "default": null
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User isolation key. Pass from session context.",
+        "default": "default"
+      }
+    },
+    "required": ["topic"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "topic": {"type": "string"},
+      "timeframe": {"type": "string"},
+      "account": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+      "user_id": {"type": "string"},
+      "periods_found": {
+        "type": "integer",
+        "description": "Number of distinct calendar months found in the result set."
+      },
+      "periods_analysed": {
+        "type": "integer",
+        "description": "Number of periods for which an LLM summary was generated."
+      },
+      "timeline": {
+        "type": "array",
+        "description": "Ordered list of monthly narrative summaries (ascending by date).",
+        "items": {
+          "type": "object",
+          "properties": {
+            "period": {"type": "string", "description": "Year-month label, e.g. '2025-11'."},
+            "chunk_count": {"type": "integer", "description": "Total chunks found in this period."},
+            "analysed_count": {"type": "integer", "description": "Chunks used for the LLM summary (up to 5)."},
+            "stance": {"type": "string", "description": "Dominant narrative stance in 2-3 sentences."},
+            "key_claims": {"type": "array", "items": {"type": "string"}, "description": "Main claims made in this period."},
+            "tone": {"type": "string", "description": "Overall tone: bullish | bearish | cautious | neutral | mixed."}
+          }
+        }
+      },
+      "error": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Non-null if the query failed or no content was found. Inform the user and suggest they try a broader timeframe or check that content has been ingested for this topic."
+      }
+    }
+  }
+}

@@ -1,0 +1,268 @@
+/* Terminal Theme CSS for 4S1T Agent AI */
+:root {
+    --bg-color: #000000;
+    --bg-secondary: #0f0f0f;
+    --text-color: #00ff00;
+    --text-muted: #008000;
+    --accent-color: #00ff00;
+    --accent-hover: #00cc00;
+    --border-color: #004000;
+    --error-color: #ff5555;
+    --warning-color: #ffff55;
+    --success-color: #50fa7b;
+    --font-mono: 'Andale Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+    --transition: 0.1s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.4;
+    min-height: 100vh;
+    display: flex;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 200px;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    padding: 1rem 0;
+    overflow-y: auto;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 0 1rem 1rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1rem;
+}
+
+.sidebar-header h2 {
+    color: var(--accent-color);
+    font-size: 12px;
+    margin: 0 0 0.25rem 0;
+    font-weight: normal;
+}
+
+.sidebar-header p {
+    color: var(--text-muted);
+    font-size: 9px;
+    margin: 0;
+}
+
+.sidebar-menu {
+    flex: 1;
+    padding: 0 0.5rem;
+}
+
+.sidebar-menu ul {
+    list-style: none;
+}
+
+.sidebar-menu li {
+    margin-bottom: 0.25rem;
+}
+
+.sidebar-menu a {
+    color: var(--text-color);
+    text-decoration: none;
+    display: block;
+    padding: 0.4rem 0.75rem;
+    transition: var(--transition);
+    font-size: 10px;
+    border-left: 2px solid transparent;
+    font-family: var(--font-mono);
+}
+
+.sidebar-menu a:hover {
+    color: var(--accent-color);
+    background-color: var(--bg-color);
+    border-left: 2px solid var(--accent-color);
+}
+
+.sidebar-menu a.active {
+    color: var(--accent-color);
+    background-color: var(--bg-color);
+    border-left: 2px solid var(--accent-color);
+}
+
+.sidebar-footer {
+    padding: 1rem 0.5rem 0 0.5rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: auto;
+}
+
+.main-content {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+.main-content.full-width {
+    margin-left: 0;
+    width: 100%;
+}
+
+.card {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.card h3 {
+    color: var(--accent-color);
+    font-size: 12px;
+    margin: 0 0 1rem 0;
+    font-weight: normal;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+    font-size: 10px;
+}
+
+input[type="text"], input[type="password"], input[type="email"], 
+select, textarea {
+    width: 100%;
+    padding: 0.6rem;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    border-radius: 1px;
+    transition: var(--transition);
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+button, .btn {
+    background-color: transparent;
+    border: 1px solid var(--accent-color);
+    color: var(--accent-color);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    transition: var(--transition);
+    border-radius: 1px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+button:hover, .btn:hover {
+    background-color: var(--accent-color);
+    color: var(--bg-color);
+}
+
+.btn-danger {
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+.btn-danger:hover {
+    background-color: var(--error-color);
+    color: var(--bg-color);
+}
+
+.error {
+    color: var(--error-color);
+    background-color: rgba(255, 85, 85, 0.1);
+    border-left: 2px solid var(--error-color);
+    padding: 0.8rem;
+    margin: 0.5rem 0;
+    font-size: 10px;
+}
+
+.success {
+    color: var(--success-color);
+    background-color: rgba(80, 250, 123, 0.1);
+    border-left: 2px solid var(--success-color);
+    padding: 0.8rem;
+    margin: 0.5rem 0;
+}
+
+.warning {
+    color: var(--warning-color);
+    background-color: rgba(255, 255, 85, 0.1);
+    border-left: 2px solid var(--warning-color);
+    padding: 0.8rem;
+    margin: 0.5rem 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--accent-color);
+    font-weight: normal;
+    margin: 0 0 1rem 0;
+    font-family: var(--font-mono);
+}
+
+h1 { font-size: 13px; }
+h2 { font-size: 12px; }
+h3 { font-size: 11px; }
+
+code {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    padding: 0.1rem 0.3rem;
+    font-size: 10px;
+}
+
+pre {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 10px;
+    border-radius: 1px;
+}
+
+a {
+    color: var(--accent-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    body {
+        flex-direction: column;
+    }
+    
+    .sidebar {
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .main-content {
+        padding: 1rem;
+    }
+}

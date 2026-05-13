@@ -1,0 +1,90 @@
+{
+  "name": "model_business_rules",
+  "version": "1.0.0",
+  "description": "Record and manage business rules for a project. Rules are classified as operational (process/behaviour rules), structural (constraints on data or relationships), or derivation (computed values or inferred facts). Supports add, update, list (with filters), free-text search, and deprecation. Use this when the user wants to capture, review, or maintain the rules that govern a business domain.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["add", "update", "list", "search", "deprecate"],
+        "description": "'add' a new rule, 'update' an existing rule by rule_id, 'list' rules with optional filters, 'search' by free text, 'deprecate' sets the rule status to deprecated.",
+        "default": "list"
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "project": {
+        "type": "string",
+        "description": "Project scope. Used as filter in list and search."
+      },
+      "rule_id": {
+        "type": "string",
+        "description": "UUID of the business rule. Required for update and deprecate."
+      },
+      "rule_name": {
+        "type": "string",
+        "description": "Short descriptive name for the rule. Required for add."
+      },
+      "rule_type": {
+        "type": "string",
+        "enum": ["operational", "structural", "derivation"],
+        "description": "Category of rule. Required for add."
+      },
+      "trigger_condition": {
+        "type": "string",
+        "description": "Event or condition that activates this rule (e.g. 'when order is placed')."
+      },
+      "condition_text": {
+        "type": "string",
+        "description": "The IF clause — conditions that must be true for the rule to apply."
+      },
+      "action_text": {
+        "type": "string",
+        "description": "The THEN clause — what must happen when the condition is met."
+      },
+      "exception_text": {
+        "type": "string",
+        "description": "Known exceptions or edge cases where the rule does not apply."
+      },
+      "source_requirement_id": {
+        "type": "string",
+        "description": "ID of the source requirement this rule was derived from."
+      },
+      "owner": {
+        "type": "string",
+        "description": "Business owner or SME responsible for this rule."
+      },
+      "status": {
+        "type": "string",
+        "enum": ["active", "draft", "deprecated"],
+        "description": "Current status of the rule. Filter for list action."
+      },
+      "query": {
+        "type": "string",
+        "description": "Free text to search across rule_name, condition_text, and action_text. Required for search."
+      }
+    },
+    "required": ["action", "user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "rule_id": {"type": "string", "description": "UUID of the affected rule (add/update)."},
+      "record": {"type": "object", "description": "Full rule record after the operation (add/update)."},
+      "rules": {"type": "array", "description": "List of rule records (list action)."},
+      "matches": {"type": "array", "description": "Search result records (search action)."},
+      "count": {"type": "integer", "description": "Number of records returned."},
+      "message": {"type": "string", "description": "Human-readable confirmation."}
+    }
+  }
+}

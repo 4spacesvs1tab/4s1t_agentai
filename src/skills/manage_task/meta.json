@@ -1,0 +1,74 @@
+{
+  "name": "manage_task",
+  "version": "1.0.0",
+  "description": "Create, update, list, complete, or cancel user tasks. Tasks have a title, optional due date, priority, and status lifecycle (open → in_progress → done). Use this when the user asks to track, manage, or follow up on an action item. For simple time-based reminders use schedule_reminder instead.",
+  "agent_scope": ["research_agent", "synthesis_agent", "ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["create", "update", "complete", "cancel", "list", "add_update"],
+        "description": "Operation to perform: 'create' a new task, 'update' fields on an existing task, 'complete' a task (sets status=done), 'cancel' a task, 'list' open tasks, 'add_update' appends a progress note to a task."
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "title": {
+        "type": "string",
+        "description": "Task title (required for 'create', optional for 'update')."
+      },
+      "task_id": {
+        "type": "string",
+        "description": "UUID of the task to operate on. Required for 'update', 'complete', 'cancel', 'add_update'."
+      },
+      "description": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Optional longer description of the task."
+      },
+      "due_date": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "ISO date (YYYY-MM-DD) when the task is due. Null for no deadline."
+      },
+      "priority": {
+        "type": "string",
+        "enum": ["low", "normal", "high", "urgent"],
+        "description": "Task priority. Default 'normal'.",
+        "default": "normal"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["open", "in_progress", "blocked", "done", "cancelled"],
+        "description": "New status value for 'update' action."
+      },
+      "update_text": {
+        "type": "string",
+        "description": "Progress note to append (required for 'add_update')."
+      },
+      "filter_status": {
+        "type": "string",
+        "enum": ["open", "in_progress", "blocked", "done", "cancelled", "active"],
+        "description": "For 'list': filter by status. 'active' = open + in_progress + blocked (default).",
+        "default": "active"
+      }
+    },
+    "required": ["action", "user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "task_id": {"type": "string", "description": "UUID of the affected task (create/update/complete/cancel/add_update)."},
+      "task": {"type": "object", "description": "Full task record after the operation (create/update/complete/cancel)."},
+      "tasks": {"type": "array", "description": "List of task records (list action)."},
+      "message": {"type": "string", "description": "Human-readable confirmation."}
+    }
+  }
+}

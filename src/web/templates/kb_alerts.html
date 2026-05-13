@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}KB Alerts — 4S1T{% endblock %}
+{% block page_title %}Alerts{% endblock %}
+{% block topbar_actions %}
+<button class="v05-btn v05-btn-outline v05-btn-sm" onclick="openModal('modal-add')">
+    <span data-icon="plus" data-icon-size="14"></span> {{ t('kb.new_alert') }}
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">{{ t('kb.alerts_title') }}</div>
+    <div class="page-subtitle">{{ t('kb.alerts_subtitle') }}</div>
+</div>
+
+<!-- Alert list -->
+<div id="alerts-list" style="display:flex; flex-direction:column; gap:0.75rem;">
+    <div class="v05-card" style="padding:14px 18px; color:var(--t-2);">{{ t('common.loading') }}</div>
+</div>
+
+<div id="status-bar" style="color:var(--t-2); font-size:0.85rem; margin-top:0.5rem; min-height:1.2em;"></div>
+
+<!-- Add Alert Modal -->
+<div id="modal-add" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(500px,95vw); padding:24px;">
+        <h3 style="margin-bottom:1rem;">{{ t('kb.new_alert_title') }}</h3>
+        <div class="form-group">
+            <label>{{ t('kb.alert_query_label') }}</label>
+            <textarea id="add-query" rows="3" style="width:100%;" placeholder="{{ t('kb.alert_query_placeholder') }}"></textarea>
+        </div>
+        <div class="form-group" style="margin-top:0.75rem;">
+            <label>{{ t('kb.alert_domain_label') }}</label>
+            <input id="add-domain-filter" type="text" style="width:100%;" placeholder="macroeconomics|geopolitics">
+        </div>
+        <div class="form-group" style="margin-top:0.75rem;">
+            <label>{{ t('kb.alert_threshold_label') }}: <span id="threshold-val">0.85</span></label>
+            <input id="add-threshold" type="range" min="0.5" max="0.99" step="0.01" value="0.85" style="width:100%;"
+                   oninput="document.getElementById('threshold-val').textContent=this.value">
+        </div>
+        <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1rem;">
+            <button class="v05-btn v05-btn-ghost v05-btn-sm" onclick="closeModal('modal-add')">{{ t('common.cancel') }}</button>
+            <button class="v05-btn v05-btn-outline v05-btn-sm" onclick="submitAddAlert()">{{ t('kb.create_alert_btn') }}</button>
+        </div>
+    </div>
+</div>
+
+<script>
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;'}[m]));
+}
+function setStatus(msg, color) {
+    const el = document.getElementById('status-bar');
+    el.textContent = '$ ' + msg;
+    el.style.color = color || 'var(--t-2)';
+}
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+async function loadAlerts() {
+    try {
+        const r = await fetch('/api/v1/kb/alerts', {credentials:'include'});
+        if (!r.ok) throw new Error(r.statusText);
+        const alerts = (await r.json()).alerts || [];
+        renderAlerts(alerts);
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+function ageLabel(ts) {
+    if (!ts) return 'never';
+    const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+    if (diff < 3600) return Math.round(diff/60) + 'm ago';
+    if (diff < 86400) return Math.round(diff/3600) + 'h ago';
+    return Math.round(diff/86400) + 'd ago';
+}
+
+function renderAlerts(alerts) {
+    const el = document.getElementById('alerts-list');
+    if (!alerts.length) {
+        el.innerHTML = `<div class="v05-card" style="padding:14px 18px; color:var(--t-2);">{{ t('kb.alerts_no_alerts') }}</div>`;
+        return;
+    }
+    el.innerHTML = alerts.map(a => {
+        const domains = a.domain_filter ? a.domain_filter.join(', ') : 'all domains';
+        return `<div class="v05-card" style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; padding:14px 18px;">
+            <div style="flex:1; min-width:200px;">
+                <p style="color:var(--t); font-weight:700; margin-bottom:0.25rem; font-size:13.5px;">${escapeHtml(a.query)}</p>
+                <p style="color:var(--t-2); font-size:12px;">
+                    Domains: ${domains} ·
+                    Threshold: ${a.similarity_threshold} ·
+                    Last triggered: <span style="color:var(--warn);">${ageLabel(a.last_triggered_at)}</span>
+                </p>
+                <p style="color:var(--t-3); font-size:11px; margin-top:0.25rem;">Created ${ageLabel(a.created_at)}</p>
+            </div>
+            <button onclick="deleteAlert('${a.id}')" class="v05-btn v05-btn-danger v05-btn-sm" style="flex-shrink:0;">
+                ✕ Remove
+            </button>
+        </div>`;
+    }).join('');
+}
+
+async function submitAddAlert() {
+    const query = document.getElementById('add-query').value.trim();
+    if (!query) { setStatus('{{ t("kb.alerts_query_required") }}', 'var(--err)'); return; }
+    const threshold = parseFloat(document.getElementById('add-threshold').value);
+    const rawDomains = document.getElementById('add-domain-filter').value.trim();
+    const domain_filter = rawDomains ? rawDomains.split('|').map(s => s.trim()).filter(Boolean) : null;
+
+    setStatus('{{ t("kb.alerts_creating") }}', 'var(--warn)');
+    try {
+        const r = await fetch('/api/v1/kb/alerts', {
+            method:'POST', credentials:'include',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({query, domain_filter, similarity_threshold: threshold})
+        });
+        if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+        closeModal('modal-add');
+        setStatus('{{ t("kb.alerts_created") }}', 'var(--live)');
+        loadAlerts();
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+async function deleteAlert(id) {
+    if (!confirm('Remove this alert?')) return;
+    try {
+        await fetch(`/api/v1/kb/alerts/${id}`, {method:'DELETE', credentials:'include'});
+        setStatus('{{ t("kb.alerts_removed") }}', 'var(--t-2)');
+        loadAlerts();
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+document.getElementById('modal-add').addEventListener('click', e => { if (e.target.id === 'modal-add') closeModal('modal-add'); });
+document.addEventListener('DOMContentLoaded', loadAlerts);
+</script>
+{% endblock %}

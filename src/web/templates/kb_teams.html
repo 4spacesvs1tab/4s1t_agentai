@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+
+{% block title %}Teams — 4S1T{% endblock %}
+{% block page_title %}Teams{% endblock %}
+{% block topbar_actions %}
+<button class="v05-btn v05-btn-outline v05-btn-sm" onclick="openCreateModal()">
+    <span data-icon="plus" data-icon-size="14"></span> New team
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">Teams &amp; Shared Knowledge</div>
+    <div class="page-subtitle">Share KB accounts and briefs across multiple users.</div>
+</div>
+
+<!-- Deployment mode banner -->
+<div id="mode-banner" class="v05-card" style="margin-bottom:14px; padding:12px 18px; display:flex; align-items:center; gap:12px;">
+    <span id="mode-badge" style="font-size:11px; font-weight:700; padding:3px 8px; border-radius:3px; background:var(--s2); color:var(--t-2); border:1px solid var(--b);">SOLO</span>
+    <span id="mode-desc" style="font-size:13px; color:var(--t-2);">Single-user mode. Sharing is disabled.</span>
+    <button id="mode-change-btn" class="v05-btn v05-btn-outline v05-btn-sm" style="margin-left:auto; display:none;" onclick="openDeployModal()">Change mode</button>
+</div>
+
+<!-- Teams list -->
+<div class="v05-card" style="padding:0; margin-bottom:14px;">
+    <div style="padding:12px 18px; border-bottom:1px solid var(--b); font-weight:600; font-size:13px;">Your teams</div>
+    <div id="teams-list">
+        <div style="padding:18px; color:var(--t-2); font-size:13px;">Loading…</div>
+    </div>
+</div>
+
+<div id="status-bar" style="color:var(--t-2); font-size:0.85rem; min-height:1.2em;"></div>
+
+<!-- ===== Create team modal ===== -->
+<div id="modal-create" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(460px,95vw); position:relative;">
+        <h3 style="margin-bottom:1rem;">New team</h3>
+        <div class="form-group">
+            <label>Team name *</label>
+            <input id="new-name" type="text" placeholder="e.g. Research Group" style="width:100%;">
+        </div>
+        <div class="form-group" style="margin-top:.75rem;">
+            <label>Description</label>
+            <input id="new-desc" type="text" placeholder="Optional" style="width:100%;">
+        </div>
+        <div style="display:flex; gap:8px; margin-top:1.25rem; justify-content:flex-end;">
+            <button class="v05-btn v05-btn-outline v05-btn-sm" onclick="closeModal('modal-create')">Cancel</button>
+            <button class="v05-btn v05-btn-primary v05-btn-sm" onclick="createTeam()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Team detail modal ===== -->
+<div id="modal-team" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(600px,95vw); max-height:88vh; overflow-y:auto; position:relative;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:1rem;">
+            <h3 id="detail-name" style="margin:0; flex:1;"></h3>
+            <span id="detail-role-badge" style="font-size:11px; font-weight:700; padding:2px 7px; border-radius:3px; background:var(--s2); color:var(--t-2); border:1px solid var(--b);"></span>
+        </div>
+        <p id="detail-desc" style="font-size:13px; color:var(--t-2); margin:0 0 1rem;"></p>
+
+        <!-- Members sub-section -->
+        <div style="font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--t-3); margin-bottom:.5rem;">Members</div>
+        <div class="v05-card" style="padding:0; margin-bottom:1rem;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <th style="padding:8px 12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--t-3); border-bottom:1px solid var(--b); text-align:left;">User</th>
+                        <th style="padding:8px 12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--t-3); border-bottom:1px solid var(--b); text-align:left;">Role</th>
+                        <th style="padding:8px 12px; border-bottom:1px solid var(--b);"></th>
+                    </tr>
+                </thead>
+                <tbody id="members-tbody">
+                    <tr><td colspan="3" style="padding:12px; color:var(--t-2);">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Add member row (owner/admin only) -->
+        <div id="add-member-row" style="display:none; display:flex; gap:8px; margin-bottom:1.25rem; flex-wrap:wrap;">
+            <input id="add-member-userid" type="text" placeholder="User ID" style="flex:1; min-width:120px;">
+            <select id="add-member-role" style="width:110px;">
+                <option value="member">member</option>
+                <option value="admin">admin</option>
+                <option value="viewer">viewer</option>
+            </select>
+            <button class="v05-btn v05-btn-outline v05-btn-sm" onclick="addMember()">Add</button>
+        </div>
+
+        <!-- Shared accounts sub-section -->
+        <div style="font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--t-3); margin-bottom:.5rem;">Shared KB accounts</div>
+        <div id="team-accounts" style="font-size:13px; color:var(--t-2); margin-bottom:1rem;">Loading…</div>
+
+        <div style="display:flex; gap:8px; justify-content:space-between; align-items:center;">
+            <button id="delete-team-btn" class="v05-btn btn-danger v05-btn-sm" style="display:none;" onclick="deleteTeam()">Delete team</button>
+            <button class="v05-btn v05-btn-outline v05-btn-sm" style="margin-left:auto;" onclick="closeModal('modal-team')">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Deployment mode modal (admin only) ===== -->
+<div id="modal-deploy" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(420px,95vw); position:relative;">
+        <h3 style="margin-bottom:1rem;">Deployment mode</h3>
+        <div class="form-group">
+            <label>Mode</label>
+            <select id="deploy-mode" style="width:100%;" onchange="updateModeHint()">
+                <option value="solo">solo — single user</option>
+                <option value="family">family — up to 8 users, optional shared KB</option>
+                <option value="team">team — multi-user with RBAC</option>
+            </select>
+        </div>
+        <div id="mode-hint" class="warning" style="margin:.75rem 0; display:none;"></div>
+        <div class="form-group" style="margin-top:.75rem;">
+            <label>Max users</label>
+            <input id="deploy-max-users" type="number" min="1" max="100" value="1" style="width:100%;">
+        </div>
+        <div class="form-group" style="margin-top:.75rem; display:flex; gap:12px;">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input id="deploy-allow-reg" type="checkbox"> Allow open registration
+            </label>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                <input id="deploy-require-inv" type="checkbox" checked> Require invite
+            </label>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:1.25rem; justify-content:flex-end;">
+            <button class="v05-btn v05-btn-outline v05-btn-sm" onclick="closeModal('modal-deploy')">Cancel</button>
+            <button class="v05-btn v05-btn-primary v05-btn-sm" onclick="saveDeployConfig()">Save</button>
+        </div>
+    </div>
+</div>
+
+<script>
+var _currentTeamId = null;
+var _myRole = null;
+var _isAdmin = {{ 'true' if user and user.is_admin else 'false' }};
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+function setStatus(msg, ok) {
+    var el = document.getElementById('status-bar');
+    el.textContent = msg;
+    el.style.color = ok === false ? 'var(--err)' : ok === true ? 'var(--live)' : 'var(--t-2)';
+}
+
+function openModal(id) {
+    var el = document.getElementById(id);
+    el.style.display = 'flex';
+}
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        ['modal-create','modal-team','modal-deploy'].forEach(closeModal);
+    }
+});
+
+// ── Deployment config ─────────────────────────────────────────────────────
+
+async function loadDeployConfig() {
+    try {
+        var r = await API.fetch('/api/v1/kb/deployment-config');
+        if (!r.ok) return;
+        var d = await r.json();
+        var badge = document.getElementById('mode-badge');
+        var desc  = document.getElementById('mode-desc');
+        badge.textContent = d.mode.toUpperCase();
+        var colours = {solo:'var(--t-3)', family:'var(--warn)', team:'var(--live)'};
+        badge.style.color = colours[d.mode] || 'var(--t-2)';
+        var descs = {
+            solo:   'Single-user mode. Sharing is disabled.',
+            family: 'Family mode — up to ' + d.max_users + ' users. Optional shared KB accounts.',
+            team:   'Team mode — up to ' + d.max_users + ' users with full RBAC.'
+        };
+        desc.textContent = descs[d.mode] || d.mode;
+        if (_isAdmin) document.getElementById('mode-change-btn').style.display = '';
+        // Pre-fill deploy modal
+        document.getElementById('deploy-mode').value = d.mode;
+        document.getElementById('deploy-max-users').value = d.max_users;
+        document.getElementById('deploy-allow-reg').checked = !!d.allow_registration;
+        document.getElementById('deploy-require-inv').checked = !!d.require_invite;
+    } catch(e) {}
+}
+
+function openDeployModal() { openModal('modal-deploy'); }
+
+function updateModeHint() {
+    var mode = document.getElementById('deploy-mode').value;
+    var hint = document.getElementById('mode-hint');
+    if (mode === 'team') {
+        hint.style.display = '';
+        hint.textContent = 'Team mode enables RBAC and shared KB accounts across all teams.';
+    } else {
+        hint.style.display = 'none';
+    }
+}
+
+async function saveDeployConfig() {
+    var body = {
+        mode: document.getElementById('deploy-mode').value,
+        max_users: parseInt(document.getElementById('deploy-max-users').value) || 1,
+        allow_registration: document.getElementById('deploy-allow-reg').checked,
+        require_invite: document.getElementById('deploy-require-inv').checked
+    };
+    var r = await API.fetch('/api/v1/kb/deployment-config', {method:'PUT', body: JSON.stringify(body)});
+    if (r.ok) {
+        closeModal('modal-deploy');
+        setStatus('Deployment mode saved.', true);
+        loadDeployConfig();
+    } else {
+        var e = await r.json().catch(() => ({}));
+        setStatus('Error: ' + (e.detail || r.status), false);
+    }
+}
+
+// ── Teams list ────────────────────────────────────────────────────────────
+
+async function loadTeams() {
+    var r = await API.fetch('/api/v1/kb/teams');
+    var container = document.getElementById('teams-list');
+    if (!r.ok) {
+        container.innerHTML = '<div style="padding:18px; color:var(--err);">Failed to load teams.</div>';
+        return;
+    }
+    var data = await r.json();
+    if (!data.teams.length) {
+        container.innerHTML = '<div style="padding:18px; color:var(--t-2); font-size:13px;">No teams yet. Create one to share KB accounts with other users.</div>';
+        return;
+    }
+    var rows = data.teams.map(function(t) {
+        var roleColour = {owner:'var(--live)', admin:'var(--warn)', member:'var(--t)', viewer:'var(--t-2)'}[t.my_role] || 'var(--t-2)';
+        return '<tr style="cursor:pointer;" onclick="openTeamDetail(\'' + t.id + '\')">' +
+            '<td style="padding:12px 18px;"><strong>' + esc(t.name) + '</strong>' +
+                (t.description ? '<br><span style="font-size:12px;color:var(--t-2);">' + esc(t.description) + '</span>' : '') + '</td>' +
+            '<td style="padding:12px 18px; font-size:12px; color:var(--t-2);">' + esc(t.created_at ? t.created_at.split('T')[0] : '') + '</td>' +
+            '<td style="padding:12px 18px;"><span style="font-size:11px; font-weight:700; color:' + roleColour + ';">' + esc(t.my_role) + '</span></td>' +
+        '</tr>';
+    }).join('');
+    container.innerHTML = '<table style="width:100%; border-collapse:collapse;">' +
+        '<thead><tr>' +
+            '<th style="padding:8px 18px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--t-3); border-bottom:1px solid var(--b); text-align:left;">Team</th>' +
+            '<th style="padding:8px 18px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--t-3); border-bottom:1px solid var(--b); text-align:left;">Created</th>' +
+            '<th style="padding:8px 18px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--t-3); border-bottom:1px solid var(--b); text-align:left;">My role</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>';
+}
+
+function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Create team ───────────────────────────────────────────────────────────
+
+function openCreateModal() {
+    document.getElementById('new-name').value = '';
+    document.getElementById('new-desc').value = '';
+    openModal('modal-create');
+}
+
+async function createTeam() {
+    var name = document.getElementById('new-name').value.trim();
+    if (!name) { setStatus('Team name is required.', false); return; }
+    var body = {name: name, description: document.getElementById('new-desc').value.trim() || null};
+    var r = await API.fetch('/api/v1/kb/teams', {method:'POST', body:JSON.stringify(body)});
+    if (r.ok) {
+        closeModal('modal-create');
+        setStatus('Team created.', true);
+        loadTeams();
+    } else {
+        var e = await r.json().catch(() => ({}));
+        setStatus('Error: ' + (e.detail || r.status), false);
+    }
+}
+
+// ── Team detail ───────────────────────────────────────────────────────────
+
+async function openTeamDetail(teamId) {
+    _currentTeamId = teamId;
+    openModal('modal-team');
+    document.getElementById('detail-name').textContent = 'Loading…';
+    document.getElementById('members-tbody').innerHTML = '<tr><td colspan="3" style="padding:12px; color:var(--t-2);">Loading…</td></tr>';
+    document.getElementById('team-accounts').textContent = 'Loading…';
+
+    // Team details
+    var r = await API.fetch('/api/v1/kb/teams/' + teamId);
+    if (!r.ok) { setStatus('Could not load team.', false); closeModal('modal-team'); return; }
+    var team = await r.json();
+    _myRole = team.my_role;
+
+    document.getElementById('detail-name').textContent = team.name;
+    document.getElementById('detail-desc').textContent = team.description || '';
+    var roleBadge = document.getElementById('detail-role-badge');
+    roleBadge.textContent = team.my_role;
+    var roleColour = {owner:'var(--live)', admin:'var(--warn)', member:'var(--t)', viewer:'var(--t-2)'}[team.my_role];
+    roleBadge.style.color = roleColour || 'var(--t-2)';
+
+    // Owner-only controls
+    document.getElementById('delete-team-btn').style.display = team.my_role === 'owner' ? '' : 'none';
+    var addRow = document.getElementById('add-member-row');
+    addRow.style.display = (team.my_role === 'owner' || team.my_role === 'admin') ? 'flex' : 'none';
+
+    // Members
+    loadMembers(teamId, team.my_role);
+
+    // Shared accounts
+    loadTeamAccounts(teamId);
+}
+
+async function loadMembers(teamId, myRole) {
+    var r = await API.fetch('/api/v1/kb/teams/' + teamId + '/members');
+    var tbody = document.getElementById('members-tbody');
+    if (!r.ok) { tbody.innerHTML = '<tr><td colspan="3" style="padding:12px;color:var(--err);">Failed.</td></tr>'; return; }
+    var data = await r.json();
+    tbody.innerHTML = data.members.map(function(m) {
+        var canRemove = (myRole === 'owner' || myRole === 'admin') && m.role !== 'owner';
+        return '<tr>' +
+            '<td style="padding:9px 12px;">' + esc(m.username || m.user_id) + '</td>' +
+            '<td style="padding:9px 12px; font-size:12px; color:var(--t-2);">' + esc(m.role) + '</td>' +
+            '<td style="padding:9px 12px; text-align:right;">' +
+                (canRemove ? '<button class="v05-btn btn-danger v05-btn-sm" onclick="removeMember(\'' + esc(m.user_id) + '\')" style="padding:2px 8px; font-size:11px;">Remove</button>' : '') +
+            '</td></tr>';
+    }).join('') || '<tr><td colspan="3" style="padding:12px; color:var(--t-2);">No members.</td></tr>';
+}
+
+async function addMember() {
+    var userId = document.getElementById('add-member-userid').value.trim();
+    var role   = document.getElementById('add-member-role').value;
+    if (!userId) { setStatus('User ID is required.', false); return; }
+    var r = await API.fetch('/api/v1/kb/teams/' + _currentTeamId + '/members', {
+        method: 'POST',
+        body: JSON.stringify({user_id: userId, role: role})
+    });
+    if (r.ok) {
+        document.getElementById('add-member-userid').value = '';
+        setStatus('Member added.', true);
+        loadMembers(_currentTeamId, _myRole);
+    } else {
+        var e = await r.json().catch(() => ({}));
+        setStatus('Error: ' + (e.detail || r.status), false);
+    }
+}
+
+async function removeMember(userId) {
+    if (!confirm('Remove this member from the team?')) return;
+    var r = await API.fetch('/api/v1/kb/teams/' + _currentTeamId + '/members/' + userId, {method:'DELETE'});
+    if (r.ok || r.status === 204) {
+        setStatus('Member removed.', true);
+        loadMembers(_currentTeamId, _myRole);
+    } else {
+        var e = await r.json().catch(() => ({}));
+        setStatus('Error: ' + (e.detail || r.status), false);
+    }
+}
+
+async function loadTeamAccounts(teamId) {
+    var el = document.getElementById('team-accounts');
+    var r  = await API.fetch('/api/v1/kb/teams/' + teamId + '/accounts');
+    if (!r.ok) { el.textContent = 'Failed to load accounts.'; return; }
+    var data = await r.json();
+    if (!data.accounts.length) {
+        el.innerHTML = '<span style="color:var(--t-3);">None. To share an account, open <a href="/kb/accounts" style="color:var(--t);">KB Accounts</a> and set its scope to "team".</span>';
+        return;
+    }
+    el.innerHTML = data.accounts.map(function(a) {
+        return '<span style="display:inline-block; margin:2px 4px 2px 0; padding:2px 8px; border:1px solid var(--b); border-radius:3px; font-size:12px;">' + esc(a.display_name) + '</span>';
+    }).join('');
+}
+
+async function deleteTeam() {
+    if (!confirm('Delete this team? This cannot be undone.')) return;
+    var r = await API.fetch('/api/v1/kb/teams/' + _currentTeamId, {method:'DELETE'});
+    if (r.ok || r.status === 204) {
+        closeModal('modal-team');
+        setStatus('Team deleted.', true);
+        loadTeams();
+    } else {
+        var e = await r.json().catch(() => ({}));
+        setStatus('Error: ' + (e.detail || r.status), false);
+    }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+loadDeployConfig();
+loadTeams();
+</script>
+{% endblock %}

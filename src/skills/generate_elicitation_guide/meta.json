@@ -1,0 +1,77 @@
+{
+  "name": "generate_elicitation_guide",
+  "version": "1.0.0",
+  "description": "Generate a targeted elicitation guide (interview, workshop, survey, or focus group) based on what is already documented for the project. Reads existing requirements, stakeholders, decisions, and risks from the DB to identify gaps and produce a structured guide template with a context summary. The calling agent fills in the actual questions using the returned context.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["generate"],
+        "description": "Always 'generate'.",
+        "default": "generate"
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "project": {
+        "type": "string",
+        "description": "Project name to read context from."
+      },
+      "session_type": {
+        "type": "string",
+        "enum": ["interview", "workshop", "survey", "focus_group"],
+        "description": "Type of elicitation session to generate a guide for.",
+        "default": "interview"
+      },
+      "focus_area": {
+        "type": "string",
+        "enum": ["requirements", "risks", "process", "stakeholders", "all"],
+        "description": "What aspect of the project to focus on.",
+        "default": "all"
+      },
+      "target_stakeholder": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Optional: tailor the guide to a specific stakeholder role or name."
+      },
+      "duration_minutes": {
+        "type": "integer",
+        "description": "Planned session duration in minutes.",
+        "default": 60
+      }
+    },
+    "required": ["user_id", "project"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "project": {"type": "string"},
+      "session_type": {"type": "string"},
+      "focus_area": {"type": "string"},
+      "context_used": {
+        "type": "object",
+        "description": "Summary of existing project artifacts read from DB."
+      },
+      "gaps_identified": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Missing or incomplete areas identified from DB state."
+      },
+      "suggested_participants": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Stakeholders from ba_stakeholders with champion or supporter position."
+      },
+      "guide_markdown": {"type": "string"}
+    }
+  }
+}

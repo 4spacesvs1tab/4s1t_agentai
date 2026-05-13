@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="{{ lang | default('en') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}4S1T Agent AI{% endblock %}</title>
+    <script src="{{ url_for('static', path='/js/theme.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/v05.css') }}">
+    <style>
+        html, body { height: 100%; }
+        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    </style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+{% block content %}{% endblock %}
+
+<script src="{{ url_for('static', path='/js/icons.js') }}"></script>
+<script>
+/* Background canvas */
+(function() {
+    var canvas = document.getElementById('bg-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W, H, particles;
+    var N = 55;
+    function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+    function init() {
+        resize();
+        particles = [];
+        for (var i = 0; i < N; i++) {
+            particles.push({ x: Math.random()*W, y: Math.random()*H,
+                vx: (Math.random()-.5)*.28, vy: (Math.random()-.5)*.28,
+                r: Math.random()*1.4+.4 });
+        }
+    }
+    function draw() {
+        ctx.clearRect(0,0,W,H);
+        var light = document.documentElement.getAttribute('data-theme') === 'light';
+        var rgb = light ? '50,45,70' : '155,160,200';
+        for (var i = 0; i < N; i++) {
+            var p = particles[i];
+            p.x += p.vx; p.y += p.vy;
+            if (p.x < 0) p.x = W; else if (p.x > W) p.x = 0;
+            if (p.y < 0) p.y = H; else if (p.y > H) p.y = 0;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+            ctx.fillStyle = 'rgba('+rgb+',.5)'; ctx.fill();
+            for (var j = i+1; j < N; j++) {
+                var q = particles[j];
+                var dx = p.x-q.x, dy = p.y-q.y, d = Math.sqrt(dx*dx+dy*dy);
+                if (d < 110) {
+                    ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(q.x,q.y);
+                    ctx.strokeStyle = 'rgba('+rgb+','+(1-d/110)*.09+')';
+                    ctx.lineWidth = .5; ctx.stroke();
+                }
+            }
+        }
+        requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', resize);
+    init(); draw();
+})();
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

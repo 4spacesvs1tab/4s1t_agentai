@@ -1,0 +1,69 @@
+{
+  "name": "knowledge_graph_query",
+  "version": "1.0.0",
+  "description": "Traverse the knowledge graph to find relationships between named entities. Use this skill for questions like: 'Who does [analyst] cite?', 'Which sources are connected to [topic]?', 'What is the relationship between [person A] and [person B]?'. Returns entities and typed relation paths. Entities are populated from ingested KB content via the entity extractor. If the graph is sparse (few ingested items), results may be limited.",
+  "agent_scope": ["research_agent", "ba_agent", "synthesis_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 30,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "read",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "entity": {
+        "type": "string",
+        "description": "Entity name or account ID to start traversal from. Accepts full name, canonical name, alias, or account_id from kb_accounts. Fuzzy substring matching is applied if no exact match found."
+      },
+      "relation_type": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Filter to a specific relation type. Options: 'mentioned', 'cited', 'endorsed', 'criticized', 'replied', 'writes_about', 'appeared_on', 'co_authored', 'contradicts', 'predicts', 'works_for'. Null returns all relation types.",
+        "default": null
+      },
+      "max_hops": {
+        "type": "integer",
+        "description": "Maximum BFS traversal depth. 1 = direct relations only. 2 = friends-of-friends (default). 3 = three degrees of separation. Higher values return more entities but increase latency.",
+        "default": 2,
+        "minimum": 1,
+        "maximum": 3
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User context. Currently unused for graph filtering (graph is global). Pass from session context for future user-scoped graphs.",
+        "default": "default"
+      }
+    },
+    "required": ["entity"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "root_entity": {
+        "oneOf": [{"type": "object"}, {"type": "null"}],
+        "description": "The resolved starting entity. Null if not found."
+      },
+      "entities": {
+        "type": "array",
+        "description": "All entities within max_hops of the root entity. Each has: id, name, canonical_name, entity_type, aliases, mention_count, first_seen, last_seen.",
+        "items": {"type": "object"}
+      },
+      "relations": {
+        "type": "array",
+        "description": "All traversed relation edges. Each has: id, source_entity, source_name, target_entity, target_name, relation_type, weight, evidence_count, first_seen, last_seen.",
+        "items": {"type": "object"}
+      },
+      "total_entities": {"type": "integer"},
+      "total_relations": {"type": "integer"},
+      "resolved_from": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Non-null when fuzzy resolution was used: e.g. '\"Fed\"→\"Federal Reserve\"'. Mention in your answer so the user knows which entity was queried."
+      },
+      "error": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Non-null if the root entity was not found. Inform the user and suggest they check the entity name or note that the graph may not contain this entity yet."
+      }
+    }
+  }
+}

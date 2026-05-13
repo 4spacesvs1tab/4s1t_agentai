@@ -1,0 +1,50 @@
+{
+  "name": "file_read",
+  "version": "1.0.0",
+  "description": "Read a file from the allowed data directory and return its content as text. The path is sandboxed to FILE_READ_BASE_DIR — path traversal outside this directory is blocked. Supports text files (UTF-8) and returns file size. Use for reading data files, documents, or previous output files.",
+  "agent_scope": ["ba_agent", "data_agent", "research_agent", "synthesis_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "read",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Path to the file to read, relative to the allowed data directory."
+      },
+      "encoding": {
+        "type": "string",
+        "description": "File encoding. Defaults to utf-8.",
+        "default": "utf-8"
+      },
+      "max_bytes": {
+        "type": "integer",
+        "description": "Maximum bytes to read. Defaults to 1 MB.",
+        "default": 1048576
+      }
+    },
+    "required": ["path"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "content": {
+        "type": "string",
+        "description": "File content as text"
+      },
+      "size_bytes": {
+        "type": "integer",
+        "description": "Total file size in bytes"
+      },
+      "truncated": {
+        "type": "boolean",
+        "description": "True if the file was larger than max_bytes and was truncated"
+      }
+    }
+  }
+}

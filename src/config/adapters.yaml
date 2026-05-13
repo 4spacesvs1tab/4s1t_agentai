@@ -1,0 +1,17 @@
+# Ingestion adapter registry — maps platform alias → Python class path.
+# Add entries here to support new platforms without touching source code.
+# All aliases that resolve to the same adapter share the same class path.
+# Operators may add entries; built-in aliases are always available via the
+# hardcoded fallback even if this file is missing or an entry is removed.
+adapters:
+  website:   kb.ingestion.website_adapter.WebsiteAdapter
+  blog:      kb.ingestion.website_adapter.WebsiteAdapter
+  substack:  kb.ingestion.website_adapter.WebsiteAdapter
+  wordpress: kb.ingestion.website_adapter.WebsiteAdapter
+  twitter:   kb.ingestion.nitter_adapter.NitterAdapter
+  twitter2:  kb.ingestion.nitter_adapter.NitterAdapter
+  nitter:    kb.ingestion.nitter_adapter.NitterAdapter
+  youtube:   kb.ingestion.youtube_adapter.YouTubeAdapter
+  podcast:   kb.ingestion.podcast_adapter.PodcastAdapter
+  nostr:     kb.ingestion.nostr_adapter.NostrAdapter
+  rumble:    kb.ingestion.rumble_adapter.RumbleAdapter

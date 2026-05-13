@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}Wiki — 4S1T{% endblock %}
+{% block page_title %}Wiki{% endblock %}
+{% block topbar_actions %}
+<button class="v05-btn v05-btn-outline v05-btn-sm" onclick="openGenerateModal()">
+    <span data-icon="plus" data-icon-size="14"></span> New page
+</button>
+{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">Personal Wiki</div>
+    <div class="page-subtitle">On-demand reference pages synthesised from your knowledge base.</div>
+</div>
+
+<!-- Pages list -->
+<div id="pages-list" style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1rem;">
+    <div class="v05-card" style="padding:14px 18px; color:var(--t-2);">Loading…</div>
+</div>
+
+<div id="status-bar" style="color:var(--t-2); font-size:0.85rem; min-height:1.2em;"></div>
+
+<!-- ===== Generate modal ===== -->
+<div id="modal-generate" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(480px,95vw); position:relative;">
+        <h3 style="margin-bottom:1rem;">Generate wiki page</h3>
+        <div class="form-group">
+            <label>Topic *</label>
+            <input id="gen-topic" type="text" placeholder="e.g. Fed rate policy, requirements elicitation" style="width:100%;" onkeydown="if(event.key==='Enter')generatePage()">
+        </div>
+        <div class="form-group" style="margin-top:.75rem; display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="gen-force-refresh">
+            <label for="gen-force-refresh" style="cursor:pointer; margin:0;">Force refresh (regenerate if page already exists)</label>
+        </div>
+        <div id="gen-status" style="font-size:12px; color:var(--t-2); margin-top:.5rem; min-height:1.2em;"></div>
+        <div style="display:flex; gap:8px; margin-top:1.25rem; justify-content:flex-end;">
+            <button class="v05-btn v05-btn-outline v05-btn-sm" onclick="closeModal('modal-generate')">Cancel</button>
+            <button id="gen-btn" class="v05-btn v05-btn-primary v05-btn-sm" onclick="generatePage()">Generate</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== View modal ===== -->
+<div id="modal-view" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(780px,97vw); max-height:90vh; overflow-y:auto; position:relative;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:1rem; flex-wrap:wrap;">
+            <h3 id="view-title" style="margin:0; flex:1;"></h3>
+            <span id="view-meta" style="font-size:11px; color:var(--t-3);"></span>
+            <button id="view-refresh-btn" class="v05-btn v05-btn-outline v05-btn-sm" onclick="refreshCurrentPage()">↺ Refresh</button>
+            <button class="v05-btn v05-btn-ghost v05-btn-sm" onclick="toggleViewRaw()">Raw</button>
+            <button class="v05-btn v05-btn-ghost v05-btn-sm" style="margin-left:auto;" onclick="closeModal('modal-view')">✕ Close</button>
+        </div>
+        <div id="view-rendered" style="line-height:1.75; color:var(--t);"></div>
+        <pre id="view-raw" style="display:none; white-space:pre-wrap; font-size:0.8rem; color:var(--t-2); overflow-x:auto; margin:0;"></pre>
+    </div>
+</div>
+
+<script>
+var _currentPageId   = null;
+var _currentPageTopic = null;
+var _showingRaw = false;
+
+function setStatus(msg, color) {
+    var el = document.getElementById('status-bar');
+    el.textContent = msg ? '$ ' + msg : '';
+    el.style.color = color || 'var(--t-2)';
+}
+
+function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+}
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        ['modal-generate','modal-view'].forEach(closeModal);
+    }
+});
+
+function ageLabel(ts) {
+    if (!ts) return '—';
+    var diff = (Date.now() - new Date(ts).getTime()) / 1000;
+    if (diff < 3600) return Math.round(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.round(diff / 3600) + 'h ago';
+    return Math.round(diff / 86400) + 'd ago';
+}
+
+function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Load list ──────────────────────────────────────────────────────────────
+
+async function loadPages() {
+    var container = document.getElementById('pages-list');
+    try {
+        var r = await API.fetch('/api/v1/kb/wiki-pages');
+        if (!r.ok) throw new Error(r.statusText);
+        var data = await r.json();
+        renderPages(data.pages || []);
+    } catch(e) {
+        container.innerHTML = '<div class="v05-card" style="padding:14px 18px; color:var(--err);">Failed to load wiki pages: ' + esc(e.message) + '</div>';
+    }
+}
+
+function renderPages(pages) {
+    var container = document.getElementById('pages-list');
+    if (!pages.length) {
+        container.innerHTML = '<div class="v05-card" style="padding:18px; color:var(--t-2);">No wiki pages yet. Click <strong>New page</strong> to generate one from your KB content.</div>';
+        return;
+    }
+    container.innerHTML = pages.map(function(p) {
+        return '<div class="v05-card" style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap; padding:12px 18px; cursor:pointer;" onclick="openPage(\'' + esc(p.topic) + '\')" id="page-row-' + esc(p.id) + '">' +
+            '<div style="flex:1; min-width:200px;">' +
+                '<p style="font-size:14px; font-weight:600; margin:0 0 2px;">' + esc(p.title) + '</p>' +
+                '<p style="color:var(--t-3); font-size:11px; margin:0;">' +
+                    '<code style="background:var(--s2); padding:1px 5px; border-radius:3px; font-size:10px;">' + esc(p.topic) + '</code>' +
+                    ' &nbsp;v' + (p.version || 1) +
+                    ' &nbsp;·&nbsp; ' + (p.source_chunk_count || 0) + ' chunks' +
+                    ' &nbsp;·&nbsp; updated ' + ageLabel(p.updated_at) +
+                '</p>' +
+            '</div>' +
+            '<div style="display:flex; gap:6px; flex-shrink:0;" onclick="event.stopPropagation();">' +
+                '<button class="v05-btn v05-btn-ghost v05-btn-sm" title="Refresh page" onclick="refreshPage(\'' + esc(p.topic) + '\', \'' + esc(p.id) + '\')">↺</button>' +
+                '<button class="v05-btn btn-danger v05-btn-sm" title="Delete page" onclick="deletePage(\'' + esc(p.id) + '\')">✕</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+// ── Generate ───────────────────────────────────────────────────────────────
+
+function openGenerateModal() {
+    document.getElementById('gen-topic').value = '';
+    document.getElementById('gen-force-refresh').checked = false;
+    document.getElementById('gen-status').textContent = '';
+    document.getElementById('gen-btn').disabled = false;
+    openModal('modal-generate');
+    setTimeout(function() { document.getElementById('gen-topic').focus(); }, 50);
+}
+
+async function generatePage() {
+    var topic = document.getElementById('gen-topic').value.trim();
+    if (!topic) { document.getElementById('gen-status').textContent = 'Topic is required.'; return; }
+
+    var forceRefresh = document.getElementById('gen-force-refresh').checked;
+    var btn = document.getElementById('gen-btn');
+    btn.disabled = true;
+    document.getElementById('gen-status').textContent = 'Generating… (this may take up to 90s)';
+
+    try {
+        var r = await API.fetch('/api/v1/kb/wiki-pages', {
+            method: 'POST',
+            body: JSON.stringify({topic: topic, force_refresh: forceRefresh})
+        });
+        var data = await r.json();
+        if (!r.ok || data.error) {
+            document.getElementById('gen-status').textContent = 'Error: ' + (data.error || data.detail || r.status);
+            btn.disabled = false;
+            return;
+        }
+        closeModal('modal-generate');
+        setStatus(data.cached ? 'Returned cached page.' : 'Page generated (v' + data.version + ').', 'var(--live)');
+        loadPages();
+        openPageData(data);
+    } catch(e) {
+        document.getElementById('gen-status').textContent = 'Request failed: ' + e.message;
+        btn.disabled = false;
+    }
+}
+
+// ── View ───────────────────────────────────────────────────────────────────
+
+async function openPage(topic) {
+    openModal('modal-view');
+    document.getElementById('view-title').textContent = 'Loading…';
+    document.getElementById('view-rendered').innerHTML = '';
+    document.getElementById('view-raw').textContent = '';
+    _showingRaw = false;
+    document.getElementById('view-raw').style.display = 'none';
+    document.getElementById('view-rendered').style.display = '';
+
+    try {
+        var r = await API.fetch('/api/v1/kb/wiki-pages/' + encodeURIComponent(topic));
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+        var data = await r.json();
+        openPageData(data);
+    } catch(e) {
+        document.getElementById('view-title').textContent = 'Error';
+        document.getElementById('view-rendered').textContent = e.message;
+    }
+}
+
+function openPageData(data) {
+    _currentPageId    = data.page_id;
+    _currentPageTopic = data.topic;
+    _showingRaw = false;
+    document.getElementById('view-raw').style.display = 'none';
+    document.getElementById('view-rendered').style.display = '';
+
+    document.getElementById('view-title').textContent = data.title || data.topic || 'Wiki page';
+    document.getElementById('view-meta').textContent =
+        'v' + (data.version || 1) + ' · ' + (data.source_chunk_count || 0) + ' chunks · ' +
+        (data.updated_at ? new Date(data.updated_at).toLocaleDateString() : '');
+
+    var rendered = document.getElementById('view-rendered');
+    var raw      = document.getElementById('view-raw');
+    if (data.content) {
+        rendered.innerHTML = DOMPurify.sanitize(marked.parse(data.content));
+        raw.textContent = data.content;
+    } else {
+        rendered.textContent = data.error || 'No content.';
+        raw.textContent = '';
+    }
+    openModal('modal-view');
+}
+
+function toggleViewRaw() {
+    _showingRaw = !_showingRaw;
+    document.getElementById('view-rendered').style.display = _showingRaw ? 'none' : '';
+    document.getElementById('view-raw').style.display      = _showingRaw ? '' : 'none';
+}
+
+// ── Refresh ────────────────────────────────────────────────────────────────
+
+async function refreshPage(topic, pageId) {
+    setStatus('Refreshing "' + topic + '"…', 'var(--warn)');
+    try {
+        var r = await API.fetch('/api/v1/kb/wiki-pages', {
+            method: 'POST',
+            body: JSON.stringify({topic: topic, force_refresh: true})
+        });
+        var data = await r.json();
+        if (!r.ok || data.error) {
+            setStatus('Refresh failed: ' + (data.error || data.detail || r.status), 'var(--err)');
+            return;
+        }
+        setStatus('Refreshed to v' + data.version + '.', 'var(--live)');
+        loadPages();
+    } catch(e) {
+        setStatus('Refresh failed: ' + e.message, 'var(--err)');
+    }
+}
+
+async function refreshCurrentPage() {
+    if (!_currentPageTopic) return;
+    document.getElementById('view-refresh-btn').disabled = true;
+    document.getElementById('view-title').textContent += ' (refreshing…)';
+    try {
+        var r = await API.fetch('/api/v1/kb/wiki-pages', {
+            method: 'POST',
+            body: JSON.stringify({topic: _currentPageTopic, force_refresh: true})
+        });
+        var data = await r.json();
+        if (!r.ok || data.error) {
+            setStatus('Refresh failed: ' + (data.error || data.detail || r.status), 'var(--err)');
+        } else {
+            openPageData(data);
+            setStatus('Refreshed to v' + data.version + '.', 'var(--live)');
+            loadPages();
+        }
+    } catch(e) {
+        setStatus('Refresh failed: ' + e.message, 'var(--err)');
+    }
+    document.getElementById('view-refresh-btn').disabled = false;
+}
+
+// ── Delete ─────────────────────────────────────────────────────────────────
+
+async function deletePage(pageId) {
+    if (!confirm('Delete this wiki page?')) return;
+    try {
+        var r = await API.fetch('/api/v1/kb/wiki-pages/' + pageId, {method: 'DELETE'});
+        if (r.ok || r.status === 204) {
+            setStatus('Page deleted.', 'var(--live)');
+            loadPages();
+        } else {
+            var e = await r.json().catch(() => ({}));
+            setStatus('Delete failed: ' + (e.detail || r.status), 'var(--err)');
+        }
+    } catch(e) {
+        setStatus('Delete failed: ' + e.message, 'var(--err)');
+    }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+loadPages();
+</script>
+{% endblock %}

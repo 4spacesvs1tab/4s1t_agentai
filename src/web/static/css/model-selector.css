@@ -1,0 +1,307 @@
+/**
+ * ModelSelector Styles — v05 design system
+ * No terminal greens, no Courier New. Uses v05 CSS tokens.
+ */
+
+.model-selector-container {
+    position: relative;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+}
+
+.model-selector-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 0.75rem;
+    background: var(--s2);
+    border: 1px solid var(--b-med);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    transition: border-color var(--t-fast), background var(--t-fast);
+    min-height: 36px;
+    gap: 6px;
+}
+
+.model-selector-display:hover {
+    border-color: var(--b-hi);
+    background: var(--s3);
+}
+
+.model-selector-display:focus {
+    outline: none;
+    border-color: var(--b-hi);
+}
+
+.model-selector-text {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.model-selector-text .placeholder {
+    color: var(--t-3);
+    font-size: 13px;
+}
+
+.model-selector-text .selected-model {
+    color: var(--t);
+    font-weight: 500;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.model-selector-arrow {
+    color: var(--t-3);
+    font-size: 0.75rem;
+    transition: transform var(--t-fast);
+    flex-shrink: 0;
+}
+
+.model-selector-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--s1);
+    border: 1px solid var(--b-med);
+    border-radius: var(--r-sm);
+    max-height: 380px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+}
+
+.model-selector-search {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--b);
+    position: sticky;
+    top: 0;
+    background: var(--s1);
+    z-index: 10;
+}
+
+.model-selector-search input {
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    background: var(--s2);
+    border: 1px solid var(--b);
+    border-radius: var(--r-xs);
+    color: var(--t);
+    font-family: inherit;
+    font-size: 12.5px;
+    transition: border-color var(--t-fast);
+}
+
+.model-selector-search input:focus {
+    outline: none;
+    border-color: var(--b-hi);
+}
+
+.model-selector-search input::placeholder {
+    color: var(--t-3);
+}
+
+.model-selector-content {
+    padding: 4px 0;
+}
+
+/* Section */
+.section {
+    margin-bottom: 0;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--s2);
+    font-weight: 600;
+    color: var(--t-2);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.section-header .section-icon {
+    margin-right: 6px;
+}
+
+.section-content {
+    padding: 2px 0;
+}
+
+/* Provider section */
+.provider .section-header {
+    background: var(--s2);
+    color: var(--t-2);
+    cursor: pointer;
+    user-select: none;
+}
+
+.provider .section-header:hover {
+    background: var(--s3);
+    color: var(--t);
+}
+
+/* Tier Group */
+.tier-group {
+    margin: 0;
+}
+
+.tier-header {
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--t-3);
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+/* Model Item */
+.model-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background var(--t-fast);
+}
+
+.model-item:hover {
+    background: var(--s2);
+}
+
+.model-item.selected {
+    background: var(--s2);
+    border-left: 2px solid var(--t-2);
+}
+
+.model-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.model-name {
+    color: var(--t);
+    font-weight: 500;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.model-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--t-3);
+    margin-top: 2px;
+}
+
+.provider-name {
+    color: var(--t-2);
+    font-weight: 500;
+}
+
+.time-indicator {
+    font-style: normal;
+}
+
+/* Subscription Badges */
+.subscription-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: var(--r-pill);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.subscription-badge.pro {
+    background: var(--warn-dim);
+    color: var(--warn);
+}
+
+.subscription-badge.free {
+    background: var(--s3);
+    color: var(--t-2);
+}
+
+.subscription-badge.premium {
+    background: rgba(139,92,246,0.12);
+    color: #8B5CF6;
+}
+
+/* Favorite Toggle */
+.favorite-toggle {
+    padding: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--t-3);
+    transition: color var(--t-fast);
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.favorite-toggle:hover {
+    color: var(--t-2);
+}
+
+.favorite-toggle.favorited {
+    color: var(--warn);
+}
+
+/* Selected Indicator */
+.selected-indicator {
+    color: var(--t-2);
+    font-weight: 700;
+    margin-left: 6px;
+    font-size: 12px;
+}
+
+/* Section Divider */
+.section-divider {
+    height: 1px;
+    background: var(--b);
+    margin: 4px 0;
+}
+
+/* States */
+.loading, .no-results {
+    padding: 14px 12px;
+    text-align: center;
+    color: var(--t-3);
+    font-size: 12.5px;
+}
+
+.error {
+    padding: 14px 12px;
+    text-align: center;
+    color: var(--err);
+    font-size: 12.5px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .model-selector-dropdown {
+        max-height: 280px;
+    }
+
+    .model-item {
+        padding: 10px 12px;
+    }
+}
+
+/* Touch targets */
+@media (hover: none) and (pointer: coarse) {
+    .model-selector-display,
+    .model-item {
+        min-height: 44px;
+    }
+}

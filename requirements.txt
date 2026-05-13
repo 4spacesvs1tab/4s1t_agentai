@@ -1,0 +1,93 @@
+# ===========================================================================
+# 4S1T Agent AI — Runtime Dependencies
+# Security-critical packages are pinned to exact versions (==).
+# Packages with complex transitive dependency trees use compatible-release (~=).
+# Run `pip-audit --local` after `pip install -r requirements.txt` to audit.
+#
+# Hardware note — target: Core2Duo P8400 (Penryn), x86_64, SSE4.1, no SSE4.2.
+#   numpy: pinned <2.0 — numpy 2.x requires SSE4.2 → illegal instruction on target
+#   chromadb/hnswlib: optional, excluded from base image for same reason
+#   cryptography: 46.0.3 confirmed working on Core2Duo (manylinux wheel, OpenSSL
+#     does runtime CPU feature detection — no SSE4.2 or AES-NI required)
+# ===========================================================================
+
+# Core web framework
+# fastapi 0.124+ brings starlette 0.50+ (fixes CVE-2025-54121, CVE-2025-62727)
+# Confirmed working on remote: fastapi 0.124.4 + starlette 0.50.0
+fastapi~=0.124.0
+uvicorn[standard]~=0.34.0
+python-multipart~=0.0.20   # FastAPI form data (login, file uploads)
+jinja2~=3.1                 # FastAPI Jinja2Templates for HTML responses
+pydantic~=2.11.0
+pydantic-settings~=2.8.0
+
+# Database
+# chromadb + hnswlib: required for the Knowledge Base feature (KB phases 1–5).
+# They pull numpy as a build dep; numpy 2.x requires SSE4.2 (not on Core2Duo P8400).
+# numpy is pinned <2.0 below so the SSE4.2 constraint is already satisfied.
+# R500 (Core i5 gen4, SSE4.1+SSE4.2) is confirmed compatible.
+# chromadb>=0.5.0 ships its own vendored hnswlib — no separate install needed.
+chromadb>=0.5.0,<1.0.0
+# sqlite3 is built into Python standard library
+
+# Knowledge Base — ingestion and preprocessing dependencies (KB phases 1–5)
+feedparser~=6.0          # website_adapter, podcast_adapter — RSS/Atom feed parsing
+langdetect~=1.0          # preprocessor — language detection (Polish + English)
+networkx~=3.3            # social_graph — in-memory graph traversal for L1/L2 accounts
+readability-lxml~=0.8    # website_adapter — article body extraction from raw HTML
+pdfplumber~=0.11         # babok_loader — PDF page extraction for BABOK bootstrap
+PyPDF2~=3.0              # babok_loader — fallback PDF reader if pdfplumber unavailable
+
+# Security — pinned to exact versions to prevent supply-chain drift
+argon2-cffi==25.1.0
+# cryptography: 46.0.5 fixes CVE-2026-26007 SECT subgroup check (GHSA-r6ph-v2qm-q3c2)
+# We use secp256k1/P-256 so the SECT issue did not affect us, but upgrading clears pip-audit.
+cryptography==46.0.5
+# JWT operations use PyJWT directly (already listed above); python-jose removed to eliminate
+# the ecdsa transitive dep (GHSA-wj6h-64fc-37mp, Minerva timing attack, no upstream fix).
+# CSRF token generation (P3-5) — URLSafeTimedSerializer for double-submit tokens
+itsdangerous~=2.2
+PyJWT~=2.9                  # bare 'import jwt' usage in web_routes.py
+passlib==1.7.4
+pyotp==2.9.0
+qrcode==8.0
+
+# AI/ML dependencies
+openai==1.84.0          # required by core/api_client.py → Nano-GPT
+aiohttp~=3.10           # used by src/ai/models/nano_gpt.py, nano_gpt_api.py
+numpy~=1.26             # pinned <2.0 — numpy 2.x requires SSE4.2 (not on Core2Duo P8400)
+# pandas>=2.1.0
+
+# Skills Framework dependencies
+dateparser~=1.2         # schedule_reminder skill — natural-language time parsing
+duckduckgo-search~=7.5  # web_search skill — no API key required
+openpyxl~=3.1.5         # data_read skill + export_document skill — Excel file parsing/generation
+weasyprint~=68.0        # export_document skill — pandoc PDF engine (no LaTeX required); needs pango+cairo (in image)
+matplotlib~=3.9         # chart_generate skill — PNG chart generation (Agg backend, no SSE4.2)
+
+# Utilities
+python-dotenv==1.1.0
+pyyaml==6.0.2
+requests~=2.32          # used by src/services/authy_service.py
+redis==5.2.1
+psutil==7.0.0
+cachetools==5.5.2
+
+# Testing
+pytest==8.3.5
+pytest-cov==6.1.0
+pytest-asyncio==0.25.3
+httpx[socks]==0.28.1
+socksio~=1.0        # httpx[socks] SOCKS5 transport — required for Tor proxy routing
+
+# Development tools
+black==25.1.0
+flake8==7.2.0
+mypy==1.15.0
+
+# Security audit (used in CI)
+pip-audit==2.9.0
+
+# Nostr / NIP-17
+nostr-sdk>=0.44.0
+websockets~=14.2

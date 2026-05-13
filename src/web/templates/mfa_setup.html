@@ -1,0 +1,100 @@
+{% extends "auth_base.html" %}
+{% block title %}{{ t('mfa.setup_title') }} — 4S1T Agent AI{% endblock %}
+
+{% block content %}
+<div class="v05-auth-card" style="max-width:440px;">
+    <div class="v05-auth-logo">
+        <div class="v05-auth-logo-icon">4s1t</div>
+        <div class="v05-auth-logo-text">
+            <h1>{{ t('mfa.setup_title') }}</h1>
+            <p>{{ t('mfa.setup_subtitle') }}</p>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="v05-auth-error" style="margin-bottom:16px;">{{ error }}</div>
+    {% endif %}
+
+    <!-- Step 1: scan QR -->
+    <div style="margin-bottom:20px; padding:16px; background:var(--s2); border-radius:var(--r-sm); border:1px solid var(--b);">
+        <p style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--t-2); margin-bottom:10px;">
+            {{ t('mfa.step1_title') }}
+        </p>
+        <p style="font-size:13px; color:var(--t-2); margin-bottom:14px;">{{ t('mfa.step1_hint_scan') }}</p>
+        <div style="text-align:center; margin-bottom:14px;">
+            <img src="data:image/png;base64,{{ qr_code }}" alt="MFA QR Code"
+                 style="border:1px solid var(--b-med); border-radius:var(--r-sm); max-width:180px;">
+        </div>
+        <p style="font-size:12px; color:var(--t-2);">{{ t('mfa.step1_hint_manual') }}</p>
+        <code style="display:block; text-align:center; font-size:14px; letter-spacing:.12em;
+                     padding:10px; background:var(--s3); border-radius:var(--r-xs);
+                     border:1px solid var(--b); margin-top:6px; word-break:break-all;">{{ manual_code }}</code>
+    </div>
+
+    <!-- Step 2: verify -->
+    <div>
+        <p style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--t-2); margin-bottom:10px;">
+            {{ t('mfa.step2_title') }}
+        </p>
+        <p style="font-size:13px; color:var(--t-2); margin-bottom:14px;">{{ t('mfa.step2_hint') }}</p>
+
+        <form id="mfa-verify-form" class="v05-auth-form">
+            <div class="v05-auth-field">
+                <label for="verification_code">{{ t('mfa.code_label') }}</label>
+                <input type="text" id="verification_code" name="verification_code"
+                       maxlength="6" pattern="[0-9]{6}" required placeholder="000000"
+                       style="text-align:center; font-size:20px; letter-spacing:.5em; font-variant-numeric:tabular-nums;">
+            </div>
+            <button type="submit" class="btn-signin" id="mfa-setup-submit">{{ t('mfa.verify_btn') }}</button>
+            <button type="button" onclick="location.href='/profile'"
+                    style="width:100%; margin-top:8px; padding:10px; background:transparent;
+                           border:1px solid var(--b-med); border-radius:var(--r-sm);
+                           color:var(--t-3); font-size:13px; cursor:pointer;">
+                {{ t('mfa.cancel') }}
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+var _mfa_i18n = {
+    verifying:      '{{ t("mfa.verifying") }}',
+    success:        '{{ t("mfa.success_enabled") }}\n{{ t("mfa.success_save_codes") }}',
+    failed_prefix:  '{{ t("mfa.verify_failed_prefix") }}',
+    invalid_code:   '{{ t("mfa.invalid_code") }}',
+    network_prefix: '{{ t("mfa.network_error_prefix") }}',
+};
+
+document.getElementById('mfa-verify-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var code = document.getElementById('verification_code').value;
+    var btn = document.getElementById('mfa-setup-submit');
+    var orig = btn.textContent;
+    btn.textContent = _mfa_i18n.verifying;
+    btn.disabled = true;
+
+    try {
+        var response = await fetch('/auth/mfa/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json',
+                       'Authorization': 'Bearer ' + localStorage.getItem('access_token') },
+            body: JSON.stringify({ verification_code: code, secret: '{{ secret }}' })
+        });
+        var result = await response.json();
+        if (response.ok) {
+            alert(_mfa_i18n.success);
+            window.location.href = '/profile?mfa_enabled=1';
+        } else {
+            alert(_mfa_i18n.failed_prefix + ' ' + (result.detail || _mfa_i18n.invalid_code));
+            document.getElementById('verification_code').value = '';
+            document.getElementById('verification_code').focus();
+        }
+    } catch (error) {
+        alert(_mfa_i18n.network_prefix + ' ' + error.message);
+    } finally {
+        btn.textContent = orig;
+        btn.disabled = false;
+    }
+});
+</script>
+{% endblock %}

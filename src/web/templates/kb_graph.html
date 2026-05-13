@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}KB Graph — 4S1T{% endblock %}
+{% block page_title %}Graph 3D{% endblock %}
+{% block page_class %}{% endblock %}
+
+{% block topbar_actions %}
+<button class="v05-btn v05-btn-outline v05-btn-sm" id="btn-autorotate" onclick="toggleAutoRotate()">
+    <span data-icon="refresh" data-icon-size="14"></span> Auto-rotate
+</button>
+{% endblock %}
+
+{% block extra_head %}
+<script src="/static/js/kb-graph.js?v=012j"></script>
+<style>
+/* ── Filter bar ─────────────────────────────────── */
+#filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 7px 16px;
+    background: var(--s1);
+    border-bottom: 1px solid var(--b-med);
+    flex-shrink: 0;
+}
+.kbf-group { display: flex; gap: 5px; align-items: center; }
+.kbf-sep   { width: 1px; height: 18px; background: var(--b-med); flex-shrink: 0; }
+.kbf-btn {
+    padding: 3px 10px;
+    border-radius: 14px;
+    font-size: 10px;
+    cursor: pointer;
+    border: 1px solid var(--b-med);
+    background: var(--s2);
+    color: var(--t-2);
+    transition: color .15s, background .15s, border-color .15s;
+    white-space: nowrap;
+    font-family: inherit;
+    line-height: 1.6;
+}
+.kbf-btn:hover { color: var(--t); border-color: var(--b-hi); }
+.kbf-btn.active {
+    background: var(--s4);
+    color: var(--t);
+    border-color: var(--b-hi);
+}
+
+/* ── 3D canvas wrap ─────────────────────────────── */
+#graph-wrap {
+    position: relative;
+    /* topbar=54px, filter-bar≈42px, status≈30px */
+    height: calc(100vh - 130px);
+    min-height: 400px;
+    background: var(--s1);
+}
+
+/* ── Node detail overlay ────────────────────────── */
+#node-detail {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    width: min(300px, 90%);
+    background: var(--s2);
+    border: 1px solid var(--b-med);
+    border-radius: var(--r-md);
+    padding: 1rem;
+    z-index: 10;
+    display: none;
+    box-shadow: var(--sh-md);
+}
+#node-detail h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.95rem;
+    color: var(--t);
+}
+.nd-row {
+    display: flex;
+    gap: 6px;
+    font-size: 0.82rem;
+    padding: 2px 0;
+}
+.nd-label { color: var(--t-2); width: 72px; flex-shrink: 0; }
+.nd-value { color: var(--t); }
+#nd-rels {
+    margin-top: 0.6rem;
+    border-top: 1px solid var(--b-med);
+    padding-top: 0.5rem;
+}
+.nd-rel-item {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--b);
+    font-size: 0.8rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filter bar -->
+<div id="filter-bar">
+    <!-- Domain toggles (built dynamically after data loads) -->
+    <div class="kbf-group" id="kbf-domains-group"></div>
+
+    <div class="kbf-sep"></div>
+
+    <!-- Level filter -->
+    <div class="kbf-group">
+        <button class="kbf-btn"        id="kbf-all-levels"  onclick="setLevel('all')">All levels</button>
+        <button class="kbf-btn"        id="kbf-domains"     onclick="setLevel('domains')">Domains only</button>
+        <button class="kbf-btn active" id="kbf-l1"          onclick="setLevel('l1')">+L1</button>
+        <button class="kbf-btn"        id="kbf-l2"          onclick="setLevel('l2')">+L2</button>
+    </div>
+
+    <div class="kbf-sep"></div>
+
+    <!-- Edge type toggles -->
+    <div class="kbf-group">
+        <button class="kbf-btn active" id="kbf-direct"    onclick="toggleEdge('direct')">Direct links</button>
+        <button class="kbf-btn active" id="kbf-indirect"  onclick="toggleEdge('indirect')">Indirect</button>
+        <button class="kbf-btn active" id="kbf-support"   onclick="toggleEdge('support')">Supporting</button>
+        <button class="kbf-btn active" id="kbf-contradict"onclick="toggleEdge('contradict')">Contradicting</button>
+    </div>
+</div>
+
+<!-- 3D canvas container -->
+<div id="graph-wrap">
+    <!-- Node detail panel -->
+    <div id="node-detail">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <h4 id="nd-name"></h4>
+            <button onclick="document.getElementById('node-detail').style.display='none'"
+                    style="background:none;border:none;color:var(--t-2);cursor:pointer;padding:0;font-size:1.1rem;line-height:1;margin-top:-2px;">✕</button>
+        </div>
+        <div class="nd-row"><span class="nd-label">Type</span>   <span class="nd-value" id="nd-type"></span></div>
+        <div class="nd-row"><span class="nd-label">Domain</span> <span class="nd-value" id="nd-domain"></span></div>
+        <div class="nd-row"><span class="nd-label">Items</span>  <span class="nd-value" id="nd-items"></span></div>
+        <div id="nd-rels"></div>
+        <div id="nd-link-wrap" style="margin-top:0.75rem;">
+            <a id="nd-view-link" href="/kb/accounts"
+               class="v05-btn v05-btn-primary v05-btn-sm"
+               style="font-size:0.8rem;text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+                <span data-icon="edit" data-icon-size="12"></span> {{ t('nav.kb_accounts') }}
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="status-bar" style="color:var(--t-2);font-size:0.82rem;padding:0.35rem 1.5rem;min-height:1.3em;"></div>
+
+<script>
+let _graph = null;
+
+function setStatus(msg, color) {
+    const el = document.getElementById('status-bar');
+    el.textContent = '$ ' + msg;
+    el.style.color = color || 'var(--t-2)';
+}
+
+/* ── Filter callbacks ──────────────────────────────────────── */
+function setLevel(level) {
+    if (!_graph) return;
+    _graph.setLevel(level);
+    ['all-levels', 'domains', 'l1', 'l2'].forEach(id =>
+        document.getElementById('kbf-' + id)?.classList.remove('active')
+    );
+    const map = { all: 'all-levels', domains: 'domains', l1: 'l1', l2: 'l2' };
+    document.getElementById('kbf-' + map[level])?.classList.add('active');
+}
+
+function toggleEdge(type) {
+    if (!_graph) return;
+    const on = _graph.toggleEdge(type);
+    document.getElementById('kbf-' + type)?.classList.toggle('active', on);
+}
+
+function toggleAutoRotate() {
+    if (!_graph) return;
+    const on  = _graph.toggleAutoRotate();
+    const btn = document.getElementById('btn-autorotate');
+    if (btn) btn.style.opacity = on ? '1' : '0.5';
+}
+
+/* Called by KBGraph3D when the user grabs the canvas */
+window._onKBGraphRotateStop = () => {
+    const btn = document.getElementById('btn-autorotate');
+    if (btn) btn.style.opacity = '0.5';
+};
+
+/* ── Node detail panel ─────────────────────────────────────── */
+function onNodeSelect(node) {
+    const col = KB_DOMAIN_COLORS[node.domain] || 'var(--t)';
+
+    document.getElementById('nd-name').textContent  = node.label;
+    document.getElementById('nd-name').style.color  = col;
+    document.getElementById('nd-type').textContent  =
+        node.type.toUpperCase() + (node.layer ? ' · L' + node.layer : '');
+    document.getElementById('nd-domain').textContent = node.domain || '—';
+    document.getElementById('nd-items').textContent  =
+        node.chunks > 0 ? node.chunks.toLocaleString() + ' items' : '—';
+
+    // Connected entities
+    const rels   = _graph.edges.filter(
+        e => e.source.id === node.id || e.target.id === node.id
+    );
+    const icons  = { support: '✓', contradict: '✗', indirect: '⟷', direct: '↳' };
+    const relsEl = document.getElementById('nd-rels');
+    if (rels.length) {
+        relsEl.innerHTML =
+            '<div style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;' +
+            'color:var(--t-3);margin-bottom:4px;">Connected</div>' +
+            rels.slice(0, 8).map(e => {
+                const other   = e.source.id === node.id ? e.target : e.source;
+                const eCol    = KB_EDGE_COLORS[e.type] || '#607090';
+                const oCol    = KB_DOMAIN_COLORS[other.domain] || 'var(--t)';
+                const icon    = icons[e.type] || '•';
+                return `<div class="nd-rel-item">
+                    <span style="color:${eCol};font-size:12px;">${icon}</span>
+                    <span style="color:${oCol};">${other.label}</span>
+                    <span style="color:var(--t-3);font-size:9px;">${e.label || e.type}</span>
+                </div>`;
+            }).join('');
+    } else {
+        relsEl.innerHTML = '';
+    }
+
+    // Hide "View Accounts" for domain nodes
+    document.getElementById('nd-link-wrap').style.display =
+        node.type === 'domain' ? 'none' : '';
+    if (node.type !== 'domain') {
+        document.getElementById('nd-view-link').href =
+            '/kb/accounts?id=' + encodeURIComponent(node.id);
+    }
+
+    document.getElementById('node-detail').style.display = 'block';
+}
+
+/* ── Build domain filter buttons after data loads ──────────── */
+function buildDomainFilters(domainList) {
+    const container = document.getElementById('kbf-domains-group');
+    container.innerHTML = '';
+    domainList.forEach(d => {
+        const col = KB_DOMAIN_COLORS[d] || '#6B7280';
+        const btn = document.createElement('button');
+        btn.className     = 'kbf-btn active';
+        btn.id            = 'kbf-dom-' + d;
+        btn.textContent   = d.slice(0, 4) + '..';
+        btn.style.borderColor = col + '55';
+        btn.style.color       = col;
+        btn.onclick = () => {
+            const isActive = btn.classList.toggle('active');
+            _graph.setDomainFilter(d, isActive);
+        };
+        container.appendChild(btn);
+    });
+}
+
+/* ── Data loading ──────────────────────────────────────────── */
+async function loadData() {
+    setStatus('Loading graph data…', 'var(--warn)');
+    try {
+        const [accR, graphR, statsR] = await Promise.all([
+            fetch('/api/v1/kb/accounts', { credentials: 'include' }),
+            fetch('/api/v1/kb/graph',    { credentials: 'include' }),
+            fetch('/api/v1/kb/stats',    { credentials: 'include' }),
+        ]);
+
+        if (!accR.ok) throw new Error('accounts: ' + accR.statusText);
+
+        const accData   = await accR.json();
+        const graphData = graphR.ok  ? await graphR.json()  : { edges: [] };
+        const statsData = statsR.ok  ? await statsR.json()  : { by_account: [] };
+
+        const accounts   = accData.accounts  || [];
+        const graphEdges = graphData.edges   || [];
+
+        // Build statsMap: account_id → item_count
+        const statsMap = {};
+        (statsData.by_account || []).forEach(s => {
+            statsMap[s.account_id] = s.item_count || 0;
+        });
+
+        const domainList = _graph.loadData(accounts, graphEdges, statsMap);
+        buildDomainFilters(domainList);
+
+        setStatus(
+            `Loaded ${accounts.length} account(s)` +
+            (graphEdges.length ? `, ${graphEdges.length} relation(s)` : '') + '.'
+        );
+    } catch (e) {
+        setStatus('Failed: ' + e.message, 'var(--err)');
+    }
+}
+
+/* ── Boot ──────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+    _graph = new KBGraph3D('graph-wrap', onNodeSelect);
+    loadData();
+});
+</script>
+<script>
+// Override KB_DOMAIN_COLORS with server-configured domain palette
+{%- for d in kb_domains %}
+KB_DOMAIN_COLORS['{{ d.id }}'] = '{{ d.color }}';
+{%- endfor %}
+</script>
+{% endblock %}

@@ -1,0 +1,91 @@
+{
+  "name": "log_risk",
+  "version": "1.0.0",
+  "description": "Log, update, list, and close BA project risks. Risk score is automatically computed from likelihood × impact using a 3×3 matrix (critical / high / medium / low). Use 'add' to record a new risk with mitigation and contingency plans, 'update' to revise any field (score is recomputed), 'list' to review open and mitigated risks (with open_count and critical_count summary), 'close' to mark a risk resolved.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["add", "update", "list", "close"],
+        "description": "Operation to perform. Default: 'add'."
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "project": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Project name this risk belongs to. Used as filter in 'list'."
+      },
+      "risk_id": {
+        "type": "string",
+        "description": "UUID of the risk. Required for 'update' and 'close'."
+      },
+      "title": {
+        "type": "string",
+        "description": "Short risk title. Required for 'add'."
+      },
+      "description": {
+        "type": "string",
+        "description": "Full risk description. Required for 'add'."
+      },
+      "likelihood": {
+        "type": "string",
+        "enum": ["low", "medium", "high"],
+        "description": "Likelihood of the risk occurring. Default: 'medium'.",
+        "default": "medium"
+      },
+      "impact": {
+        "type": "string",
+        "enum": ["low", "medium", "high"],
+        "description": "Business impact if the risk materialises. Default: 'medium'.",
+        "default": "medium"
+      },
+      "mitigation": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Actions to reduce likelihood or impact."
+      },
+      "contingency": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Response plan if the risk materialises despite mitigation."
+      },
+      "owner": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Person or role responsible for managing this risk."
+      },
+      "status": {
+        "type": "string",
+        "enum": ["open", "mitigated", "accepted", "closed"],
+        "description": "Risk status. Default: 'open'.",
+        "default": "open"
+      },
+      "filter_status": {
+        "type": "string",
+        "enum": ["open", "mitigated", "accepted", "closed", "active"],
+        "description": "For 'list': filter by status. 'active' = open + mitigated (default).",
+        "default": "active"
+      }
+    },
+    "required": ["user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "risk_id": {"type": "string", "description": "UUID of the affected risk."},
+      "record": {"type": "object", "description": "Full risk record after 'add' or 'update'."},
+      "risks": {"type": "array", "description": "List of risk records (list action)."},
+      "open_count": {"type": "integer", "description": "Number of open risks in the result set."},
+      "critical_count": {"type": "integer", "description": "Number of critical-scored risks in the result set."},
+      "message": {"type": "string", "description": "Human-readable confirmation."}
+    }
+  }
+}

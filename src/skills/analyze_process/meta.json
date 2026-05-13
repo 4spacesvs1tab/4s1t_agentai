@@ -1,0 +1,87 @@
+{
+  "name": "analyze_process",
+  "version": "1.0.0",
+  "description": "Formats structured process analysis output supplied by the agent into a clean markdown report. The agent performs the actual analysis (LLM reasoning); this skill validates structure, counts elements, and renders the report. Supports BABOK, Lean, and Six Sigma frameworks. Analysis types: full (all sections), gaps (pain points + improvements only), actors (actors + handoffs), pain_points, improvements.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "process_name": {
+        "type": "string",
+        "description": "Name of the process being analysed"
+      },
+      "process_description": {
+        "type": "string",
+        "description": "Brief description of the process for report context"
+      },
+      "analysis_type": {
+        "type": "string",
+        "enum": ["full", "gaps", "actors", "pain_points", "improvements"],
+        "description": "Scope of the report. Default: 'full'"
+      },
+      "framework": {
+        "type": "string",
+        "enum": ["babok", "lean", "six_sigma"],
+        "description": "Reference framework for terminology. Default: 'babok'"
+      },
+      "steps": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Process steps in order"
+      },
+      "actors": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Roles or systems involved"
+      },
+      "handoffs": {
+        "type": "array",
+        "description": "Handoff points between actors",
+        "items": {
+          "type": "object",
+          "properties": {
+            "from": {"type": "string"},
+            "to": {"type": "string"},
+            "trigger": {"type": "string"}
+          },
+          "required": ["from", "to"]
+        }
+      },
+      "pain_points": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Identified issues or inefficiencies"
+      },
+      "improvement_opportunities": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Suggested improvements"
+      },
+      "project": {
+        "type": "string",
+        "description": "Optional project context for the report header"
+      }
+    },
+    "required": ["process_name"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "process_name": {"type": "string"},
+      "analysis_type": {"type": "string"},
+      "framework": {"type": "string"},
+      "step_count": {"type": "integer"},
+      "actor_count": {"type": "integer"},
+      "pain_point_count": {"type": "integer"},
+      "improvement_count": {"type": "integer"},
+      "analysis_markdown": {"type": "string"}
+    }
+  }
+}
