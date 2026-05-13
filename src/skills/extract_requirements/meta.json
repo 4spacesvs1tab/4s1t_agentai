@@ -1,0 +1,104 @@
+{
+  "name": "extract_requirements",
+  "version": "1.0.0",
+  "description": "Persist, retrieve, and manage structured requirements for a BA project. The calling agent performs the analysis and extracts requirements from source text; this skill stores and manages those pre-structured records. Supports bulk add, list with filters, update, approval workflow, and individual get. Requirement types: functional, non_functional, constraint, assumption.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["add", "list", "update", "approve", "get"],
+        "description": "'add' one or more pre-structured requirements, 'list' with optional filters, 'update' an existing requirement, 'approve' a requirement (sets status=approved), 'get' a single requirement by req_id.",
+        "default": "list"
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "project": {
+        "type": "string",
+        "description": "Project scope. Used for add and as filter in list."
+      },
+      "req_id": {
+        "type": "string",
+        "description": "UUID of the requirement. Required for update, approve, and get."
+      },
+      "approver": {
+        "type": "string",
+        "description": "Name or ID of the person approving. Required for approve."
+      },
+      "requirements": {
+        "type": "array",
+        "description": "List of requirement objects to insert (used with add). Each object must have title, description, and req_type, and may have acceptance_criteria, priority, and source.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title":               {"type": "string"},
+            "description":         {"type": "string"},
+            "req_type":            {"type": "string", "enum": ["functional", "non_functional", "constraint", "assumption"]},
+            "acceptance_criteria": {"type": "array",  "items": {"type": "string"}},
+            "priority":            {"type": "string", "enum": ["low", "medium", "high", "must_have"]},
+            "source":              {"type": "string"}
+          },
+          "required": ["title", "description", "req_type"]
+        }
+      },
+      "req_type": {
+        "type": "string",
+        "enum": ["functional", "non_functional", "constraint", "assumption"],
+        "description": "Filter by requirement type (list action). Also used in update to change type."
+      },
+      "status": {
+        "type": "string",
+        "enum": ["draft", "approved", "implemented", "deferred"],
+        "description": "Filter by status (list action). Also used in update to change status."
+      },
+      "priority": {
+        "type": "string",
+        "enum": ["low", "medium", "high", "must_have"],
+        "description": "Priority of the requirement (update action)."
+      },
+      "title": {
+        "type": "string",
+        "description": "Requirement title (update action)."
+      },
+      "description": {
+        "type": "string",
+        "description": "Requirement description (update action)."
+      },
+      "acceptance_criteria": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "List of testable acceptance criteria (update action)."
+      },
+      "source": {
+        "type": "string",
+        "description": "Source document or stakeholder the requirement came from (update action)."
+      }
+    },
+    "required": ["action", "user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "inserted": {
+        "type": "array",
+        "description": "Summary of inserted requirements [{req_id, title, req_type}] (add action)."
+      },
+      "count": {"type": "integer", "description": "Number of records inserted or returned."},
+      "requirements": {"type": "array", "description": "List of requirement records (list action)."},
+      "req_id": {"type": "string", "description": "UUID of the affected requirement (update/approve/get)."},
+      "record": {"type": "object", "description": "Full requirement record (update/get)."},
+      "requirement": {"type": "object", "description": "Single requirement record (get action)."},
+      "message": {"type": "string", "description": "Human-readable confirmation."}
+    }
+  }
+}

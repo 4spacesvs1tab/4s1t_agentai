@@ -1,0 +1,158 @@
+# Knowledge Base Domain Definitions — EXAMPLE / TEMPLATE
+#
+# HOW TO USE:
+#   cp src/config/kb_domains.yaml.example src/config/kb_domains.yaml
+#   Then populate kb_domains.yaml with your own domains and accounts.
+#
+# kb_domains.yaml is gitignored — it contains your personal interests and
+# account data. Only this .example file is committed to the repository.
+#
+# STRUCTURE:
+# Each domain entry defines:
+#   id            : unique slug used throughout the system (also ChromaDB filter tag)
+#   display_name  : human-readable label used in briefs and UI
+#   color         : hex color for this domain in the web UI (e.g. '#3b82f6')
+#   description   : paragraph describing what this domain covers
+#   keywords      : used by the orchestrator to route queries to this domain (G1)
+#   initial_accounts : L1 accounts seeded by bootstrap/seed_accounts.py
+#   bootstrap_sources: (optional) static documents loaded once via document_loader.py
+#   agent_persona : (optional) domain-specific expert agent registered in personas.py
+#
+# Domain metadata in ChromaDB:
+#   domains = pipe-separated string, e.g. "domain_a|domain_b"
+#   Filter via: {"domains": {"$contains": "domain_a"}}
+#
+# Design reference: KB_privacyEnhancements_design.md, KnowledgeBase_design.md §6.5
+
+domains:
+
+  example_domain_1:
+    id: example_domain_1
+    display_name: "Example Domain One"
+    color: '#4a90d9'
+    description: >
+      Replace this with a description of your first domain of interest.
+      The description is stored internally and not exposed publicly.
+    keywords:
+      - keyword one
+      - keyword two
+      - keyword three
+    initial_accounts:
+      - id: account_slug_1
+        display_name: "Account Display Name"
+        layer: 1
+        aliases:
+          twitter: "@handle"
+          website: "https://example.com/feed/"
+          # youtube: "UCxxxxxxxxxxxxxxxxxxxxxxxx"
+          # nostr: "npub1..."
+          # podcast: "https://feeds.example.com/podcast"
+      - id: account_slug_2
+        display_name: "Another Account"
+        layer: 1
+        aliases:
+          website: "https://anotherexample.com/feed/"
+
+  example_domain_2:
+    id: example_domain_2
+    display_name: "Example Domain Two"
+    color: '#d9534f'
+    description: >
+      Replace this with a description of your second domain of interest.
+    keywords:
+      - topic alpha
+      - topic beta
+      - topic gamma
+    initial_accounts:
+      - id: account_slug_3
+        display_name: "Third Account"
+        layer: 1
+        aliases:
+          youtube: "UCxxxxxxxxxxxxxxxxxxxxxxxx"
+          podcast: "https://feeds.example.com/rss"
+
+  # Domain with a bootstrap PDF document and a domain-specific expert agent persona.
+  # The agent_persona block causes personas.py to register a specialist agent
+  # for this domain automatically — no Python code changes needed.
+  example_domain_with_agent:
+    id: example_domain_with_agent
+    display_name: "Example Domain With Agent"
+    description: >
+      A domain that has both followed accounts and a static reference document,
+      plus a domain-expert agent persona generated from config.
+    keywords:
+      - methodology keyword
+      - reference keyword
+      - standard keyword
+    initial_accounts:
+      - id: methodology_source
+        display_name: "Methodology Publisher"
+        layer: 1
+        aliases:
+          website: "https://publisher.example.com/feed/"
+
+    # Static reference document loaded once via:
+    #   python3 src/kb/bootstrap/document_loader.py --all
+    bootstrap_sources:
+      - type: pdf
+        source_tag: reference_doc           # stored as source= in ChromaDB
+        path: "path/to/reference.pdf"       # relative to repo root
+        domain: example_domain_with_agent
+        author: "Publisher Name"
+        published_at: "2020-01-01"
+        description: "Authoritative reference document for this domain"
+
+    # Domain expert agent registered automatically in personas.py.
+    # The agent_type value becomes the key in the personas registry.
+    agent_persona:
+      agent_type: domain_expert_agent       # rename to match your domain, e.g. ba_agent
+      role_description: "Expert in this domain's methodology and best practices"
+      primary_source: reference_doc         # source= tag for KB queries (matches source_tag above)
+      primary_source_label: "Reference Document"
+      output_format: "structured reports, methodology artifacts, annotated findings"
+      reference_standard: "Reference Document knowledge areas"
+      allowed_skills:
+        - knowledge_base_search
+        - web_search
+        - file_read
+        - file_write
+        - get_current_datetime
+        - vision_analyze
+        # ── BA Planning (KA1) ─────────────────────────────────────────────
+        - plan_ba_project
+        - map_stakeholders
+        - stakeholder_analysis
+        - log_decision
+        - manage_glossary
+        # ── Elicitation (KA2) ─────────────────────────────────────────────
+        - generate_elicitation_guide
+        - extract_requirements
+        # ── Requirements Lifecycle (KA3) ──────────────────────────────────
+        - trace_requirements
+        - prioritize_requirements
+        - assess_change_impact
+        # ── Strategy Analysis (KA4) ───────────────────────────────────────
+        - gap_analysis
+        - log_risk
+        - root_cause_analysis
+        - business_case
+        # ── Requirements Analysis & Design (KA5) ──────────────────────────
+        - process_model
+        - analyze_process
+        - requirements_template
+        - verify_requirements
+        - create_diagram
+        - create_decision_model
+        - model_business_rules
+        # ── Solution Evaluation (KA6) ─────────────────────────────────────
+        - define_success_metrics
+        - analyze_kpi_performance
+        - ba_retrospective
+        # ── Document Generation ────────────────────────────────────────────
+        - render_diagram
+        - export_document
+      requires_approval: []
+      model_preference: reasoning           # reasoning | fast | coding | general
+      extra_instructions: |
+        Always retrieve relevant sections from the knowledge base before answering.
+        For methodology-specific questions, filter by source='reference_doc'.

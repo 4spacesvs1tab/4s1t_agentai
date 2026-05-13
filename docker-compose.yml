@@ -1,0 +1,211 @@
+version: '3.8'
+
+# =============================================================================
+# 4S1T Agent AI - Docker Compose
+# Air-gapped Executor Service Architecture
+# =============================================================================
+
+services:
+  # ==========================================================================
+  # Main AI Service (Port 8000)
+  # Handles: Web UI, Authentication, MCP Tools, Approval Gateway
+  # ==========================================================================
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: 4s1t-agent
+    restart: unless-stopped
+    
+    ports:
+      - "8000:8000"
+    
+    env_file:
+      - .env    # load all variables from .env into the container
+
+    environment:
+      # These override / supplement .env values
+      - PYTHONPATH=/app/src
+      - DATABASE_URL=sqlite:////app/data/agent.db
+      - SECURITY_CONFIG=/app/config/security.yml
+      - EXECUTOR_SERVICE_URL=http://executor:8001
+    
+    volumes:
+      # Project code (read-only)
+      - ./src:/app/src:ro
+      - ./config:/app/config:ro
+      # Data directory (read-write)
+      - ./data:/app/data
+      # Logs
+      - ./logs:/app/logs
+      # Certs for mTLS
+      - ./certs:/app/certs:ro
+    
+    # extra_hosts:
+    #   Add entries here to resolve local network hosts that Docker DNS cannot reach
+    #   (e.g. VPN peers, mDNS hostnames). See INSTALL.md for details.
+
+    networks:
+      - agent-network
+
+    depends_on:
+      - executor
+    
+    security_opt:
+      - no-new-privileges:true
+    
+    cap_drop:
+      - ALL
+    
+    cap_add:
+      - NET_BIND_SERVICE
+    
+    user: "1000:1000"
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 6G          # tune to your host RAM; skills with JVM (PlantUML) need ≥2G
+        reservations:
+          cpus: '0.5'
+          memory: 384M
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==========================================================================
+  # Sandboxed Executor Service (Port 8001 - INTERNAL ONLY)
+  # Handles: Code execution in isolated, air-gapped environment
+  # ==========================================================================
+  executor:
+    build:
+      context: ./services/executor
+      dockerfile: Dockerfile
+    container_name: 4s1t-executor
+    restart: "no"  # TODO: executor network_mode:none conflicts with uvicorn — needs architecture fix
+    
+    # NO PORTS EXPOSED - Only accessible via internal network
+    # This ensures complete network isolation
+    
+    environment:
+      - PYTHONPATH=/home/nonroot
+      - APPROVAL_PUBLIC_KEY=${APPROVAL_PUBLIC_KEY}
+      - MAX_EXECUTION_TIME=60
+      - MAX_MEMORY_MB=128
+      - LOG_LEVEL=INFO
+    
+    # COMPLETE NETWORK ISOLATION
+    network_mode: none
+    
+    # Alternative: Internal network only (if needed for service discovery)
+    # networks:
+    #   - agent-network
+    #   - no-internet
+    
+    # SECURITY: Run as non-root (distroless already does this)
+    # user: "65534:65534"
+    
+    # SECURITY: Read-only filesystem
+    read_only: true
+    
+    # SECURITY: No privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    
+    # SECURITY: Drop all capabilities
+    cap_drop:
+      - ALL
+    
+    # SECURITY: No new capabilities
+    cap_add: []
+    
+    # SECURITY: Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+          pids: 10
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+    
+    # SECURITY: Temporary filesystem only
+    tmpfs:
+      - /tmp:noexec,nosuid,size=50m
+      - /home/nonroot/.cache:noexec,nosuid,size=10m
+    
+    # HEALTH CHECK
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # ==========================================================================
+  # Nginx Reverse Proxy (Optional - for future use)
+  # Handles: SSL termination, rate limiting, request filtering
+  # ==========================================================================
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: 4s1t-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #   networks:
+  #     - agent-network
+  #   depends_on:
+  #     - agent
+
+  # ==========================================================================
+  # Monitoring - Prometheus (Optional)
+  # ==========================================================================
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: 4s1t-prometheus
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - prometheus-data:/prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     - agent-network
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+  #     - '--web.console.templates=/usr/share/prometheus/consoles'
+  #     - '--web.enable-lifecycle'
+
+# ==========================================================================
+# Networks
+# ==========================================================================
+networks:
+  agent-network:
+    driver: bridge
+    internal: false
+  
+  # No-internet network for complete isolation
+  no-internet:
+    driver: bridge
+    internal: true
+
+# ==========================================================================
+# Volumes
+# ==========================================================================
+volumes:
+  agent-data:
+    driver: local
+  prometheus-data:
+    driver: local

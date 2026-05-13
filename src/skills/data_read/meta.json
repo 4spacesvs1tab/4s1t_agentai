@@ -1,0 +1,62 @@
+{
+  "name": "data_read",
+  "version": "1.0.0",
+  "description": "Read and parse structured data files (CSV, Excel, JSON, JSONL) from the data directory. Returns column names, row count, data types, and a sample of rows. Use before python_execute to understand the data structure.",
+  "agent_scope": ["data_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 30,
+  "max_memory_mb": 512,
+  "network_allowed": false,
+  "filesystem_access": "read",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Path to the data file, relative to FILE_READ_BASE_DIR"
+      },
+      "sample_rows": {
+        "type": "integer",
+        "description": "Number of sample rows to return (default 10, max 100)",
+        "default": 10,
+        "minimum": 1,
+        "maximum": 100
+      },
+      "sheet_name": {
+        "type": "string",
+        "description": "For Excel files: sheet name or index. Defaults to first sheet.",
+        "default": ""
+      }
+    },
+    "required": ["path"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "columns": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Column names"
+      },
+      "row_count": {
+        "type": "integer",
+        "description": "Total number of data rows"
+      },
+      "sample": {
+        "type": "array",
+        "items": {"type": "object"},
+        "description": "First N rows as list of dicts"
+      },
+      "dtypes": {
+        "type": "object",
+        "description": "Column name to inferred data type mapping"
+      },
+      "file_format": {
+        "type": "string",
+        "description": "Detected file format (csv, excel, json, jsonl)"
+      }
+    }
+  }
+}

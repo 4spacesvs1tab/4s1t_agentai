@@ -1,0 +1,79 @@
+{
+  "name": "generate_wiki_page",
+  "version": "1.0.0",
+  "description": "Generate (or refresh) a structured Markdown reference wiki page about a topic, synthesised from KB content. The page is persisted and returned immediately. Subsequent calls for the same topic return the cached version — pass force_refresh=true to regenerate. Use for: 'Create a wiki page about X', 'What does my KB say about Y?', 'Give me a reference page on Z'. Returns the full Markdown content plus metadata. Token cost: ~7K per generation (on-demand only).",
+  "agent_scope": ["research_agent", "synthesis_agent", "kb_monitor_agent", "ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 120,
+  "max_memory_mb": 256,
+  "network_allowed": true,
+  "filesystem_access": "read",
+  "secrets_required": ["NANO_GPT_API_KEY"],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "topic": {
+        "type": "string",
+        "description": "Topic to generate a wiki page about (e.g. 'Fed rate policy', 'requirements elicitation', 'AI regulation'). Can be a natural-language phrase."
+      },
+      "force_refresh": {
+        "type": "boolean",
+        "description": "If true, regenerate the page even if one already exists. Increments the version counter. Default: false (return cached if available).",
+        "default": false
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User isolation key. Pass from session context.",
+        "default": "default"
+      }
+    },
+    "required": ["topic"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "page_id": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "UUID of the persisted wiki page."
+      },
+      "user_id": {
+        "oneOf": [{"type": "string"}, {"type": "null"}]
+      },
+      "topic": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Normalised slug of the topic (e.g. 'fed-rate-policy')."
+      },
+      "title": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Human-readable page title extracted from the generated Markdown H1."
+      },
+      "content": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Full Markdown content of the wiki page."
+      },
+      "version": {
+        "oneOf": [{"type": "integer"}, {"type": "null"}],
+        "description": "Page version (increments each time force_refresh generates new content)."
+      },
+      "created_at": {
+        "oneOf": [{"type": "string"}, {"type": "null"}]
+      },
+      "updated_at": {
+        "oneOf": [{"type": "string"}, {"type": "null"}]
+      },
+      "source_chunk_count": {
+        "type": "integer",
+        "description": "Number of KB chunks used to generate this page."
+      },
+      "cached": {
+        "type": "boolean",
+        "description": "True if the page was returned from the cache without a new LLM call."
+      },
+      "error": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Non-null if generation failed. Inform the user and suggest they ingest relevant content first."
+      }
+    }
+  }
+}

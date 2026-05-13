@@ -1,0 +1,48 @@
+{
+  "name": "render_diagram",
+  "version": "1.0.0",
+  "description": "Render a PlantUML or Mermaid diagram source string to an SVG or PNG image file. Saves to data/documents/ and returns a download_path for embedding in export_document or linking in chat. After a successful render, include the returned download_path as a Markdown image in your response if displaying inline, or pass it to export_document sections. Prefer PlantUML for UML diagrams (full UML 2.x: class, sequence, activity, use case, component, deployment, state, timing). Use Mermaid only for flowcharts already written in Mermaid syntax.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 30,
+  "max_memory_mb": 256,
+  "network_allowed": false,
+  "filesystem_access": "read_write",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "source": {
+        "type": "string",
+        "description": "Diagram source code. For PlantUML: full @startuml...@enduml block. For Mermaid: diagram definition without code fences."
+      },
+      "diagram_type": {
+        "type": "string",
+        "enum": ["plantuml", "mermaid"],
+        "default": "plantuml",
+        "description": "Rendering engine. plantuml is preferred for all UML diagram types."
+      },
+      "output_format": {
+        "type": "string",
+        "enum": ["svg", "png"],
+        "default": "svg",
+        "description": "Output image format. SVG is preferred (scalable, smaller, embeds cleanly in DOCX/HTML)."
+      },
+      "filename": {
+        "type": "string",
+        "description": "Optional output filename stem (no extension). UUID used if omitted."
+      }
+    },
+    "required": ["source"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "file_id": {"type": "string", "description": "Filename including extension, as stored in data/documents/."},
+      "download_path": {"type": "string", "description": "Relative URL for the download endpoint: /api/v1/documents/{file_id}"},
+      "output_format": {"type": "string"},
+      "size_bytes": {"type": "integer"}
+    }
+  }
+}

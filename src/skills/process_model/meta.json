@@ -1,0 +1,45 @@
+{
+  "name": "process_model",
+  "version": "1.0.0",
+  "description": "Validate and format a BPMN 2.0 XML process model. The calling agent generates the BPMN XML; this skill validates it is well-formed XML with correct BPMN 2.0 namespace, repairs common issues, and returns the validated XML with a summary of elements found.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "process_name": {
+        "type": "string",
+        "description": "Name of the process being modelled"
+      },
+      "bpmn_xml": {
+        "type": "string",
+        "description": "BPMN 2.0 XML string to validate and format"
+      }
+    },
+    "required": ["process_name", "bpmn_xml"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "valid": {"type": "boolean"},
+      "bpmn_xml": {"type": "string", "description": "Validated (and lightly formatted) BPMN XML"},
+      "summary": {
+        "type": "object",
+        "properties": {
+          "process_name": {"type": "string"},
+          "tasks_count": {"type": "integer"},
+          "gateways_count": {"type": "integer"},
+          "events_count": {"type": "integer"},
+          "flows_count": {"type": "integer"}
+        }
+      },
+      "errors": {"type": "array", "items": {"type": "string"}}
+    }
+  }
+}

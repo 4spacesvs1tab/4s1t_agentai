@@ -1,0 +1,51 @@
+{
+  "name": "ba_retrospective",
+  "version": "1.0.0",
+  "description": "Generate a BA retrospective report for a project by aggregating all ba_* tables (decisions, requirements, risks, stakeholders, KPIs). Returns metrics, open items, an overall health RAG status, and a formatted markdown report. Use at project milestones or closure (BABOK KA1.5, KA6).",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 20,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["generate"],
+        "default": "generate"
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "project": {
+        "type": "string",
+        "description": "Project name to generate retrospective for."
+      },
+      "period": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Optional ISO date range 'YYYY-MM-DD/YYYY-MM-DD' to filter by created_at."
+      }
+    },
+    "required": ["user_id", "project"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "project": {"type": "string"},
+      "period": {"oneOf": [{"type": "string"}, {"type": "null"}]},
+      "decisions": {"type": "object"},
+      "requirements": {"type": "object"},
+      "risks": {"type": "object"},
+      "stakeholders": {"type": "object"},
+      "kpis": {"type": "object"},
+      "open_items": {"type": "array"},
+      "overall_health": {"type": "string", "enum": ["Green", "Amber", "Red"]},
+      "retrospective_markdown": {"type": "string"}
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "analyze_kpi_performance",
+  "version": "1.0.0",
+  "description": "Compare actual KPI values against targets defined via define_success_metrics. Reads KPI definitions from ba_kpis, computes variance and RAG status (Red/Amber/Green) for each metric, and returns a formatted scorecard. The calling agent supplies the actual values; the skill does the math (BABOK KA6.2).",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["analyze"],
+        "default": "analyze"
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "project": {
+        "type": "string",
+        "description": "Project name to load KPI definitions from."
+      },
+      "actuals": {
+        "type": "array",
+        "description": "Actual measurements to score. Each entry: {metric_name, actual_value, period}.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "metric_name": {"type": "string"},
+            "actual_value": {"type": "number"},
+            "period": {"type": "string", "description": "e.g. 'Q1 2026', '2026-03'"}
+          },
+          "required": ["metric_name", "actual_value"]
+        }
+      }
+    },
+    "required": ["user_id", "project", "actuals"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "project": {"type": "string"},
+      "overall_rag": {"type": "string", "enum": ["Green", "Amber", "Red", "Unknown"]},
+      "scorecard": {"type": "array"},
+      "at_risk_metrics": {"type": "array", "items": {"type": "string"}},
+      "scorecard_markdown": {"type": "string"}
+    }
+  }
+}

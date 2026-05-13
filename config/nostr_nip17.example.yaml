@@ -1,0 +1,51 @@
+# Nostr NIP-17 Configuration Example for 4S1T Agent AI
+# Place this file in config/nostr_nip17.yaml and customize
+
+nostr_nip17:
+  enabled: true
+  
+  # Private key - nsec1... format
+  # For security, consider storing this in .secrets/nostr_nip17.json instead
+  private_key: nsec1yourprivatekeyhere
+  
+  # Recipient npub - npub1... format (your Nostr client/WhiteNoise npub)
+  recipient_npub: npub1recipientpubkeyhere
+  
+  # Relay configuration (max 5 relays)
+  # Supported URL formats:
+  #   - relay.damus.io (defaults to wss://)
+  #   - wss://relay.damus.io
+  #   - ws://your-local-relay:3356
+  #   - https://hixb2r4g54stav5iuz2wu2v6233z2lvbtptg2hs7avp3z2pkd4ejqeid.local
+  #   - wss://relay.primal.net
+  relays:
+    # Test with damus relay (public)
+    - url: wss://relay.damus.io
+      priority: 1
+      enabled: true
+      timeout: 15
+      reconnect: true
+    
+    # Local relay example
+    # - url: ws://your-local-relay:3356
+    #   priority: 2
+    #   enabled: true
+    
+    # .local domain example
+    # - url: wss://hixb2r4g54stav5iuz2wu2v6233z2lvbtptg2hs7avp3z2pkd4ejqeid.local
+    #   priority: 3
+    #   enabled: true
+    
+    # Additional public relays
+    # - url: wss://relay.primal.net
+    #   priority: 4
+    # - url: wss://nos.lol
+    #   priority: 5
+  
+  # Timeouts in seconds
+  timeouts:
+    connection: 15
+    message: 15
+  
+  # Auto-connect on client creation
+  auto_connect: true

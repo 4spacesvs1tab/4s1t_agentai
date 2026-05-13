@@ -1,0 +1,55 @@
+{
+  "name": "web_search",
+  "version": "1.0.0",
+  "description": "Search the web using DuckDuckGo and return titles, URLs, and text snippets for the top results. Use for any query requiring current information from the internet: news, research, documentation, or factual lookup. Returns up to 10 results.",
+  "agent_scope": ["ba_agent", "data_agent", "research_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 20,
+  "max_memory_mb": 256,
+  "network_allowed": true,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "The search query to run"
+      },
+      "limit": {
+        "type": "integer",
+        "description": "Maximum number of results to return (1–10). Defaults to 5.",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 10
+      },
+      "region": {
+        "type": "string",
+        "description": "DuckDuckGo region code (e.g. 'wt-wt' for worldwide, 'us-en' for US English). Defaults to 'wt-wt'.",
+        "default": "wt-wt"
+      }
+    },
+    "required": ["query"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "results": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title": {"type": "string"},
+            "url": {"type": "string"},
+            "snippet": {"type": "string"}
+          }
+        }
+      },
+      "result_count": {
+        "type": "integer",
+        "description": "Number of results returned"
+      }
+    }
+  }
+}

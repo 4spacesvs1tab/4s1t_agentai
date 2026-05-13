@@ -1,0 +1,78 @@
+{% extends "auth_base.html" %}
+{% block title %}Create account — 4S1T Agent AI{% endblock %}
+
+{% block content %}
+<div class="v05-auth-card">
+    <div class="v05-auth-logo">
+        <div class="v05-auth-logo-icon">4s1t</div>
+        <div class="v05-auth-logo-text">
+            <h1>Create account</h1>
+            <p>Intelligence Platform</p>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="v05-auth-error" style="margin-bottom:16px;">{{ error }}</div>
+    {% endif %}
+    <div id="error-message" class="v05-auth-error" style="display:none; margin-bottom:16px;"></div>
+
+    <form id="register-form" class="v05-auth-form">
+        <input type="hidden" id="csrf_token" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="v05-auth-field">
+            <label for="username">{{ t('register.username_label') }}</label>
+            <input type="text" id="username" name="username" required
+                   autocomplete="username" maxlength="50"
+                   placeholder="{{ t('register.placeholder_username') }}">
+        </div>
+
+        <div class="v05-auth-field">
+            <label for="password">{{ t('register.password_label') }}</label>
+            <input type="password" id="password" name="password" required
+                   autocomplete="new-password" minlength="6"
+                   placeholder="{{ t('register.placeholder_password') }}">
+        </div>
+
+        <button type="submit" class="btn-signin">{{ t('register.submit') }}</button>
+    </form>
+
+    <div class="v05-auth-footer">
+        <a href="/login">{{ t('register.already_have') }}</a>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('username').focus();
+
+    var form = document.getElementById('register-form');
+    var errorDiv = document.getElementById('error-message');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        var csrfToken = document.getElementById('csrf_token')?.value || '';
+        var username = document.getElementById('username').value;
+        var password = document.getElementById('password').value;
+        errorDiv.style.display = 'none';
+
+        try {
+            var response = await fetch('/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                body: JSON.stringify({ username, password })
+            });
+            var data = await response.json();
+            if (response.ok) {
+                window.location.href = '/login';
+            } else {
+                errorDiv.textContent = data.detail || '{{ t("register.failed") }}';
+                errorDiv.style.display = 'block';
+            }
+        } catch (err) {
+            errorDiv.textContent = '{{ t("login.network_error") }} ' + err.message;
+            errorDiv.style.display = 'block';
+        }
+    });
+});
+</script>
+{% endblock %}

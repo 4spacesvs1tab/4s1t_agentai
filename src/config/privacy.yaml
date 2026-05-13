@@ -1,0 +1,82 @@
+# =============================================================================
+# 4S1T Agent AI — Privacy Configuration
+#
+# Controls all privacy-related features:
+#   - Tor SOCKS5 proxy routing for LLM API calls
+#   - SDK fingerprint header stripping
+#   - System prompt randomization (obfuscation)
+#   - PII detection and scrubbing
+#
+# To disable all privacy features (e.g., for local testing):
+#   Set enabled: false
+#
+# Tor setup on Debian/Ubuntu:
+#   apt install tor && systemctl enable --now tor
+#   pip install "httpx[socks]"
+#   Verify: curl --socks5-hostname 127.0.0.1:9050 https://check.torproject.org
+# =============================================================================
+
+privacy:
+  # Master switch — set false to bypass all privacy transformations
+  enabled: true
+
+  # --------------------------------------------------------------------------
+  # Tor SOCKS5 proxy
+  # Set tor_proxy to empty string "" to disable Tor routing.
+  #
+  # Docker containers cannot reach 127.0.0.1 on the host — use the Docker
+  # bridge gateway IP instead. To find it:
+  #   docker inspect <container> | grep Gateway
+  # For the 4s1t_agentai_agent-network the gateway is 172.20.0.1.
+  # Tor must be configured to listen on this IP (see /etc/tor/torrc):
+  #   SocksPort 127.0.0.1:9050
+  #   SocksPort 172.20.0.1:9050
+  # --------------------------------------------------------------------------
+  tor_proxy: "socks5://172.20.0.1:9050"
+
+  # What to do when Tor is unreachable:
+  #   "kill"    — block the request entirely (fail-safe)
+  #   "approve" — send NIP-17 message asking user whether to proceed without Tor
+  tor_fallback: "kill"
+
+  # Seconds to wait for user NIP-17 response when tor_fallback is "approve"
+  tor_approval_timeout: 120
+
+  # --------------------------------------------------------------------------
+  # Header anonymization
+  # Strips X-Stainless-* SDK fingerprint headers and replaces User-Agent
+  # with a generic value so openai-sdk version / OS are not revealed.
+  # --------------------------------------------------------------------------
+  strip_sdk_headers: true
+
+  # --------------------------------------------------------------------------
+  # System prompt obfuscation
+  # Randomly selects one of several persona variant texts per agent spawn
+  # and appends a random style tag to break static fingerprinting.
+  # --------------------------------------------------------------------------
+  prompt_obfuscation: true
+
+  # --------------------------------------------------------------------------
+  # PII detection and scrubbing
+  # --------------------------------------------------------------------------
+
+  # Default per-user setting (overridden by user's profile toggle)
+  pii_scrubbing_default: false
+
+  # Tier 1 PII (PESEL, NIP, IBAN, credit card, dowód): ALWAYS alert
+  # regardless of whether scrubbing is on or off
+  pii_tier1_always_alert: true
+
+  # Tier 2 PII (email, phone, postal code, IP, date, passport):
+  # alert only when scrubbing is OFF and this many instances are detected
+  pii_tier2_alert_threshold: 3
+
+  # Seconds to wait for user NIP-17 response on PII detection alert
+  pii_approval_timeout: 120
+
+  # --------------------------------------------------------------------------
+  # Request timing jitter
+  # Adds a random delay (ms) before each outbound LLM call to break
+  # timing-based correlation attacks.
+  # --------------------------------------------------------------------------
+  request_jitter_ms: [50, 300]

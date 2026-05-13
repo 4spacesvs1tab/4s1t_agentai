@@ -1,0 +1,70 @@
+{
+  "name": "gap_analysis",
+  "version": "1.0.0",
+  "description": "Format an AS-IS vs TO-BE gap analysis report. The calling agent identifies the gaps; this skill structures and formats them as a prioritised gap list with a summary table. Returns markdown report and structured JSON.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "domain": {
+        "type": "string",
+        "description": "Business domain or process area being analysed"
+      },
+      "as_is": {
+        "type": "array",
+        "description": "Current state capabilities",
+        "items": {
+          "type": "object",
+          "properties": {
+            "capability": {"type": "string"},
+            "maturity": {"type": "string", "description": "e.g. Initial, Managed, Defined, Quantitatively Managed, Optimizing"}
+          },
+          "required": ["capability"]
+        }
+      },
+      "to_be": {
+        "type": "array",
+        "description": "Target state capabilities",
+        "items": {
+          "type": "object",
+          "properties": {
+            "capability": {"type": "string"},
+            "target_maturity": {"type": "string"}
+          },
+          "required": ["capability"]
+        }
+      },
+      "gaps": {
+        "type": "array",
+        "description": "Identified gaps between AS-IS and TO-BE",
+        "items": {
+          "type": "object",
+          "properties": {
+            "capability": {"type": "string"},
+            "gap_description": {"type": "string"},
+            "priority": {"type": "string", "enum": ["high", "medium", "low"]},
+            "recommended_action": {"type": "string"}
+          },
+          "required": ["capability", "gap_description", "priority"]
+        }
+      }
+    },
+    "required": ["domain", "as_is", "to_be", "gaps"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "gap_report_markdown": {"type": "string"},
+      "gap_summary_json": {"type": "object"},
+      "high_priority_count": {"type": "integer"},
+      "total_gaps": {"type": "integer"}
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "name": "create_decision_model",
+  "version": "1.0.0",
+  "description": "Build and validate a decision table. The calling agent defines the conditions and rules; this skill validates completeness (no gaps), detects redundant rules, and returns a formatted decision table in markdown and structured JSON. Useful for modeling business rules with branching logic (BABOK KA5.1).",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "decision_name": {
+        "type": "string",
+        "description": "Name of the decision being modelled."
+      },
+      "conditions": {
+        "type": "array",
+        "description": "List of conditions. Each has a name and the set of possible values.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string"},
+            "possible_values": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["name", "possible_values"]
+        }
+      },
+      "rules": {
+        "type": "array",
+        "description": "List of decision rules. Each maps condition names to specific values and specifies the resulting action.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "condition_values": {
+              "type": "object",
+              "description": "Dict mapping condition name to the value that applies for this rule."
+            },
+            "action": {"type": "string", "description": "The action/outcome for this rule."}
+          },
+          "required": ["condition_values", "action"]
+        }
+      },
+      "action_options": {
+        "oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "null"}],
+        "description": "Optional list of allowed action values for validation. Null = no validation."
+      }
+    },
+    "required": ["decision_name", "conditions", "rules"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "valid": {"type": "boolean"},
+      "decision_name": {"type": "string"},
+      "decision_table_markdown": {"type": "string"},
+      "coverage": {
+        "type": "object",
+        "properties": {
+          "total_combinations": {"type": "integer"},
+          "covered": {"type": "integer"},
+          "gap_pct": {"type": "number"},
+          "gaps": {"type": "array"}
+        }
+      },
+      "redundant_rules": {"type": "array", "description": "Indices of duplicate rules."},
+      "errors": {"type": "array", "items": {"type": "string"}},
+      "warnings": {"type": "array", "items": {"type": "string"}}
+    }
+  }
+}

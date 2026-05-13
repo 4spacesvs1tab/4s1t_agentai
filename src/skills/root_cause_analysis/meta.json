@@ -1,0 +1,67 @@
+{
+  "name": "root_cause_analysis",
+  "version": "1.0.0",
+  "description": "Structure a root cause analysis using 5-whys or fishbone (Ishikawa) method. The calling agent reasons about the causes; this skill enforces the structure and generates a Mermaid diagram alongside the formatted analysis report (BABOK KA4.1).",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "problem_statement": {
+        "type": "string",
+        "description": "The problem or effect being analysed."
+      },
+      "method": {
+        "type": "string",
+        "enum": ["5_whys", "fishbone"],
+        "description": "'5_whys': chain from problem to root cause. 'fishbone': causes grouped by category.",
+        "default": "fishbone"
+      },
+      "why_chain": {
+        "type": "array",
+        "description": "For method='5_whys': ordered chain. Each entry: {why: str, because: str}.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "why": {"type": "string"},
+            "because": {"type": "string"}
+          },
+          "required": ["why", "because"]
+        }
+      },
+      "causes": {
+        "type": "object",
+        "description": "For method='fishbone': dict mapping category names (People/Process/Technology/Environment/Materials/Measurement) to lists of cause strings.",
+        "additionalProperties": {"type": "array", "items": {"type": "string"}}
+      },
+      "root_causes": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Identified root causes (bottom of 5-whys chain or tips of fishbone)."
+      },
+      "recommended_actions": {
+        "oneOf": [{"type": "array", "items": {"type": "string"}}, {"type": "null"}],
+        "description": "Optional recommended corrective actions."
+      }
+    },
+    "required": ["problem_statement"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "method_used": {"type": "string"},
+      "problem_statement": {"type": "string"},
+      "root_causes": {"type": "array", "items": {"type": "string"}},
+      "recommended_actions": {"type": "array", "items": {"type": "string"}},
+      "cause_count": {"type": "integer"},
+      "mermaid_diagram": {"type": "string"},
+      "analysis_markdown": {"type": "string"}
+    }
+  }
+}

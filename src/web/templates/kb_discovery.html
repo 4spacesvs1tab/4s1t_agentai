@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}KB Discovery — 4S1T{% endblock %}
+{% block page_title %}{{ t('kb.discovery_title') }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">{{ t('kb.discovery_title') }}</div>
+    <div class="page-subtitle">{{ t('kb.discovery_subtitle') }}</div>
+</div>
+
+<div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:16px;">
+    <select id="filter-status" onchange="loadCandidates()"
+            style="background:var(--s2); color:var(--t); border:1px solid var(--b-med); border-radius:var(--r-xs); padding:5px 8px; font-size:12.5px; font-family:inherit; outline:none; cursor:pointer;">
+        <option value="pending">{{ t('kb.discovery_status_pending') }}</option>
+        <option value="">{{ t('kb.tab_all') }}</option>
+        <option value="approved">{{ t('kb.discovery_status_approved') }}</option>
+        <option value="rejected">{{ t('kb.discovery_status_rejected') }}</option>
+        <option value="blacklisted">{{ t('kb.discovery_status_blacklisted') }}</option>
+    </select>
+    <label style="color:var(--t-3); font-size:12px;">{{ t('kb.discovery_min_mentions') }}</label>
+    <select id="filter-mentions" onchange="loadCandidates()"
+            style="background:var(--s2); color:var(--t); border:1px solid var(--b-med); border-radius:var(--r-xs); padding:5px 8px; font-size:12.5px; font-family:inherit; outline:none; cursor:pointer;">
+        <option value="3" selected>3</option>
+        <option value="2">2</option>
+        <option value="1">1</option>
+        <option value="5">5</option>
+        <option value="10">10</option>
+    </select>
+</div>
+
+<div id="candidate-list" style="display:flex; flex-direction:column; gap:10px;">
+    <div style="color:var(--t-3); font-size:13px; padding:20px 0;">{{ t('common.loading') }}</div>
+</div>
+
+<div id="status-bar" style="color:var(--t-2); font-size:0.85rem; margin-top:0.5rem; min-height:1.2em;"></div>
+
+<!-- Approve Modal -->
+<div id="modal-approve" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div class="v05-card" style="width:min(520px,95vw); padding:0;">
+        <div class="card-header">
+            <div class="card-title">{{ t('kb.discovery_approve_btn') }} → L2</div>
+            <button onclick="closeModal('modal-approve')" class="v05-btn v05-btn-ghost v05-btn-sm" style="margin-left:auto;">✕</button>
+        </div>
+        <div class="card-body">
+            <input type="hidden" id="approve-id">
+            <p id="approve-name" style="color:var(--t); margin-bottom:0.5rem; font-weight:600; font-size:14px;"></p>
+
+            <!-- Read-only context -->
+            <div id="approve-context" style="background:var(--s2); border:1px solid var(--b); border-radius:var(--r-xs); padding:0.6rem 0.8rem; margin-bottom:0.75rem; font-size:0.82rem;">
+                <div id="approve-handles-row" style="display:none; margin-bottom:0.35rem;">
+                    <span style="color:var(--t-3);">{{ t('kb.discovery_handles') }} </span>
+                    <span id="approve-handles-val" style="color:var(--t);"></span>
+                </div>
+                <div id="approve-via-row" style="display:none; margin-bottom:0.35rem;">
+                    <span style="color:var(--t-3);">{{ t('kb.discovery_via') }} </span>
+                    <span id="approve-via-val" style="color:var(--t);"></span>
+                </div>
+                <div id="approve-rationale-row" style="display:none;">
+                    <span style="color:var(--t-3);">{{ t('kb.discovery_rationale') }} </span>
+                    <span id="approve-rationale-val" style="color:var(--t);"></span>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:10px;">
+                <label>{{ t('kb.field_domains') }}</label>
+                <input id="approve-domains" type="text" placeholder="macroeconomics|geopolitics">
+            </div>
+            <div class="form-group" style="margin-bottom:14px;">
+                <label>{{ t('kb.platform_aliases') }} (JSON, optional)</label>
+                <textarea id="approve-aliases" rows="3" style="font-size:0.85rem;" placeholder='{"twitter":"@handle","youtube":"UCxxx"}'></textarea>
+            </div>
+            <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                <button class="v05-btn v05-btn-outline v05-btn-sm" onclick="closeModal('modal-approve')">{{ t('common.cancel') }}</button>
+                <button class="v05-btn v05-btn-outline v05-btn-sm" onclick="submitApprove()">{{ t('kb.discovery_approve_btn') }} →</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let _candidates = [];
+
+const _disc_i18n = {
+    no_candidates:     '{{ t("kb.no_candidates") }}',
+    approve:           '{{ t("kb.discovery_approve_btn") }}',
+    reject:            '{{ t("kb.discovery_reject_btn") }}',
+    blacklist:         '{{ t("kb.discovery_blacklist_btn") }}',
+    pending_btn:       '{{ t("kb.discovery_pending_btn") }}',
+    status_pending:    '{{ t("kb.discovery_status_pending") }}',
+    status_approved:   '{{ t("kb.discovery_status_approved") }}',
+    status_rejected:   '{{ t("kb.discovery_status_rejected") }}',
+    status_bl:         '{{ t("kb.discovery_status_blacklisted") }}',
+    domains_required:  '{{ t("kb.disc_domains_required") }}',
+    aliases_invalid:   '{{ t("kb.disc_aliases_invalid") }}',
+};
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;'}[m]));
+}
+function setStatus(msg, color) {
+    const el = document.getElementById('status-bar');
+    el.textContent = '$ ' + msg;
+    el.style.color = color || 'var(--t-2)';
+}
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+async function loadCandidates() {
+    const status = document.getElementById('filter-status').value;
+    const minMentions = document.getElementById('filter-mentions').value;
+    let url = '/api/v1/kb/discovery?min_mentions=' + minMentions;
+    if (status) url += '&status_filter=' + status;
+    try {
+        const r = await fetch(url, {credentials:'include'});
+        if (!r.ok) throw new Error(r.statusText);
+        _candidates = (await r.json()).candidates || [];
+        renderCandidates();
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+const STATUS_COLOR = {
+    pending:     'var(--warn)',
+    approved:    'var(--live)',
+    rejected:    'var(--err)',
+    blacklisted: 'var(--t-3)',
+};
+
+const SENTIMENT_COLOR = {positive: 'var(--live)', negative: 'var(--err)', neutral: 'var(--t-3)'};
+const SENTIMENT_LABEL = {positive: '▲ positive', negative: '▼ negative', neutral: '◆ neutral'};
+
+function parseRationale(rationale) {
+    if (!rationale) return {sentiment: null, relation: null, snippet: ''};
+    const SENTIMENTS = ['positive', 'neutral', 'negative'];
+    const RELATIONS = ['endorsed', 'cited', 'criticized', 'replied', 'mentioned'];
+    const parts = rationale.split(' · ');
+    let sentiment = null, relation = null, consumed = 0;
+    for (let i = 0; i < Math.min(2, parts.length - 1); i++) {
+        const p = parts[i].trim().toLowerCase();
+        if (!relation && RELATIONS.includes(p)) { relation = p; consumed++; }
+        else if (!sentiment && SENTIMENTS.includes(p)) { sentiment = p; consumed++; }
+    }
+    let snippet = parts.slice(consumed).join(' · ').trim();
+    if (snippet.startsWith('"') && snippet.endsWith('"')) snippet = snippet.slice(1, -1);
+    return {sentiment, relation, snippet};
+}
+
+function statusLabel(s) {
+    return { pending: _disc_i18n.status_pending, approved: _disc_i18n.status_approved,
+             rejected: _disc_i18n.status_rejected, blacklisted: _disc_i18n.status_bl }[s] || s;
+}
+
+function actionButtons(c) {
+    const s = c.status;
+    const btns = [];
+    if (s !== 'approved')
+        btns.push(`<button class="v05-btn v05-btn-outline v05-btn-sm" style="font-size:11px;"
+            onclick="openApproveModal(${c.id})">✓ ${_disc_i18n.approve}</button>`);
+    if (s !== 'rejected')
+        btns.push(`<button class="v05-btn v05-btn-sm" style="font-size:11px; background:none; border-color:var(--err); color:var(--err);"
+            onclick="setDirectStatus(${c.id}, 'rejected')">✕ ${_disc_i18n.reject}</button>`);
+    if (s !== 'blacklisted')
+        btns.push(`<button class="v05-btn v05-btn-outline v05-btn-sm" style="font-size:11px;"
+            onclick="confirmBlacklist(${c.id}, '${escapeHtml(c.candidate_name)}')">⛔ ${_disc_i18n.blacklist}</button>`);
+    if (s !== 'pending')
+        btns.push(`<button class="v05-btn v05-btn-outline v05-btn-sm" style="font-size:11px;"
+            onclick="setDirectStatus(${c.id}, 'pending')">↺ ${_disc_i18n.pending_btn}</button>`);
+    return btns.join('');
+}
+
+function renderCandidates() {
+    const el = document.getElementById('candidate-list');
+    if (!_candidates.length) {
+        el.innerHTML = `<div style="color:var(--t-3); font-size:13px; padding:20px 0;">${_disc_i18n.no_candidates}</div>`;
+        return;
+    }
+    el.innerHTML = _candidates.map(c => {
+        const handles = (() => { try { return JSON.parse(c.candidate_handles||'{}'); } catch { return {}; } })();
+        const handleBadges = Object.entries(handles).map(([p,v]) =>
+            `<span style="background:var(--s2); border:1px solid var(--b); border-radius:var(--r-xs); padding:1px 6px; font-size:11px; margin-right:4px;">${escapeHtml(p)}: ${escapeHtml(v)}</span>`
+        ).join('');
+        const evidence = (() => { try { return JSON.parse(c.evidence||'[]'); } catch { return []; } })();
+        const {sentiment, relation, snippet} = parseRationale(c.rationale);
+        const sentimentBadge = sentiment ? `<span style="font-size:10px; padding:1px 5px; border:1px solid ${SENTIMENT_COLOR[sentiment]}; color:${SENTIMENT_COLOR[sentiment]}; border-radius:var(--r-xs);">${SENTIMENT_LABEL[sentiment]}</span>` : '';
+        const relationBadge = (relation && relation !== 'mentioned') ? `<span style="font-size:10px; padding:1px 5px; background:var(--s2); color:var(--t-3); border-radius:var(--r-xs);">${escapeHtml(relation)}</span>` : '';
+        const sc = STATUS_COLOR[c.status] || 'var(--t-3)';
+        return `<div class="v05-card" style="padding:0;">
+            <div class="card-body">
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:200px;">
+                        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap;">
+                            <strong style="color:var(--t); font-size:13px;">${escapeHtml(c.candidate_name)}</strong>
+                            <span style="font-size:10px; padding:1px 6px; border:1px solid ${sc}; color:${sc}; border-radius:var(--r-xs);">${escapeHtml(statusLabel(c.status))}</span>
+                            <span style="font-size:11px; color:var(--t-3);">×${c.mention_count}</span>
+                            ${sentimentBadge}${relationBadge}
+                        </div>
+                        ${handleBadges ? `<div style="margin-bottom:6px;">${handleBadges}</div>` : ''}
+                        ${snippet ? `<p style="color:var(--t-3); font-size:12px; margin-bottom:6px; font-style:italic;">"${escapeHtml(snippet)}"</p>` : ''}
+                        ${c.discovered_via_name ? `<p style="color:var(--t-3); font-size:11px;">Via: ${escapeHtml(c.discovered_via_name)}</p>` : (c.discovered_via ? `<p style="color:var(--t-3); font-size:11px;">Via: ${escapeHtml(c.discovered_via)}</p>` : '')}
+                        ${evidence.length ? `<p style="color:var(--t-3); font-size:11px; margin-top:3px;">${evidence.length} evidence link(s)</p>` : ''}
+                        <p style="color:var(--t-3); font-size:10px; margin-top:3px;">${c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</p>
+                    </div>
+                    <div style="display:flex; gap:5px; align-items:center; flex-shrink:0; flex-wrap:wrap;">
+                        ${actionButtons(c)}
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openApproveModal(candidateId) {
+    const c = _candidates.find(x => x.id === candidateId);
+    if (!c) return;
+    document.getElementById('approve-id').value = c.id;
+    document.getElementById('approve-name').textContent = c.candidate_name;
+
+    const handles = (() => { try { return JSON.parse(c.candidate_handles||'{}'); } catch { return {}; } })();
+    const handleEntries = Object.entries(handles);
+    const handlesRow = document.getElementById('approve-handles-row');
+    if (handleEntries.length) {
+        document.getElementById('approve-handles-val').textContent = handleEntries.map(([p,v]) => `${p}: ${v}`).join('  ·  ');
+        handlesRow.style.display = '';
+    } else {
+        handlesRow.style.display = 'none';
+    }
+
+    const viaRow = document.getElementById('approve-via-row');
+    const viaName = c.discovered_via_name || c.discovered_via || '';
+    if (viaName) {
+        document.getElementById('approve-via-val').textContent = viaName;
+        viaRow.style.display = '';
+    } else {
+        viaRow.style.display = 'none';
+    }
+
+    const ratRow = document.getElementById('approve-rationale-row');
+    const parsed = parseRationale(c.rationale);
+    const ratParts = [];
+    if (parsed.relation && parsed.relation !== 'mentioned') ratParts.push(parsed.relation);
+    if (parsed.sentiment) ratParts.push(parsed.sentiment);
+    if (parsed.snippet) ratParts.push(`"${parsed.snippet}"`);
+    if (ratParts.length) {
+        document.getElementById('approve-rationale-val').textContent = ratParts.join(' · ');
+        ratRow.style.display = '';
+    } else {
+        ratRow.style.display = 'none';
+    }
+
+    try {
+        document.getElementById('approve-aliases').value = handleEntries.length ? JSON.stringify(handles, null, 2) : '';
+    } catch { document.getElementById('approve-aliases').value = ''; }
+
+    document.getElementById('approve-domains').value = c.discovered_via_domains || '';
+    openModal('modal-approve');
+}
+
+async function submitApprove() {
+    const id = document.getElementById('approve-id').value;
+    const domains = document.getElementById('approve-domains').value.trim();
+    if (!domains) { setStatus(_disc_i18n.domains_required, 'var(--err)'); return; }
+    let aliases = null;
+    const raw = document.getElementById('approve-aliases').value.trim();
+    if (raw) { try { aliases = JSON.parse(raw); } catch { setStatus(_disc_i18n.aliases_invalid, 'var(--err)'); return; } }
+    try {
+        const r = await fetch(`/api/v1/kb/discovery/${id}/approve`, {
+            method:'POST', credentials:'include',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({domains, aliases})
+        });
+        if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+        closeModal('modal-approve');
+        setStatus('{{ t("kb.approved_l2") }}', 'var(--live)');
+        loadCandidates();
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+async function setDirectStatus(id, newStatus) {
+    try {
+        const r = await fetch(`/api/v1/kb/discovery/${id}/set-status`, {
+            method:'POST', credentials:'include',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({status: newStatus})
+        });
+        if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+        setStatus(`Status → ${newStatus}.`, 'var(--t-2)');
+        loadCandidates();
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+async function confirmBlacklist(id, name) {
+    if (!confirm(`Permanently blacklist "${name}" from future discovery?`)) return;
+    await setDirectStatus(id, 'blacklisted');
+}
+
+document.getElementById('modal-approve').addEventListener('click', e => { if (e.target.id === 'modal-approve') closeModal('modal-approve'); });
+document.addEventListener('DOMContentLoaded', loadCandidates);
+</script>
+{% endblock %}

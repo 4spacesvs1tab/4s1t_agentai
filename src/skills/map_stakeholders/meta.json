@@ -1,0 +1,81 @@
+{
+  "name": "map_stakeholders",
+  "version": "1.0.0",
+  "description": "Manage a stakeholder registry for a BA project. Track each stakeholder's role, influence level (high/medium/low), position (champion/supporter/neutral/blocker/unknown), and engagement approach. Supports influence/interest matrix analysis grouped into four quadrants (Manage Closely, Keep Satisfied, Keep Informed, Monitor) and a RACI position summary. Use this when the user wants to identify, record, or analyse project stakeholders.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 15,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["add", "update", "remove", "list", "analyze"],
+        "description": "'add' a new stakeholder, 'update' an existing one, 'remove' by stakeholder_id, 'list' all stakeholders for a project, 'analyze' the influence/interest matrix for a project.",
+        "default": "list"
+      },
+      "user_id": {
+        "type": "string",
+        "description": "User ID from session context. Always required."
+      },
+      "project": {
+        "type": "string",
+        "description": "Project name or identifier. Required for add, list, and analyze."
+      },
+      "stakeholder_id": {
+        "type": "string",
+        "description": "UUID of the stakeholder record. Required for update and remove."
+      },
+      "name": {
+        "type": "string",
+        "description": "Full name of the stakeholder. Required for add."
+      },
+      "role": {
+        "type": "string",
+        "description": "Stakeholder's organisational role or job title."
+      },
+      "interest": {
+        "type": "string",
+        "description": "Level of interest in the project outcome: high, medium, or low.",
+        "enum": ["high", "medium", "low"]
+      },
+      "influence": {
+        "type": "string",
+        "description": "Level of influence over project decisions: high, medium, or low.",
+        "enum": ["high", "medium", "low"]
+      },
+      "position": {
+        "type": "string",
+        "description": "Stakeholder's attitude toward the project.",
+        "enum": ["champion", "supporter", "neutral", "blocker", "unknown"]
+      },
+      "engagement_approach": {
+        "type": "string",
+        "description": "Recommended engagement or communication strategy."
+      },
+      "notes": {
+        "type": "string",
+        "description": "Free-text notes about this stakeholder."
+      }
+    },
+    "required": ["action", "user_id"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "stakeholder_id": {"type": "string", "description": "UUID of the affected stakeholder (add/update)."},
+      "record": {"type": "object", "description": "Full stakeholder record after the operation (add/update)."},
+      "stakeholders": {"type": "array", "description": "List of stakeholder records (list action)."},
+      "count": {"type": "integer", "description": "Number of records returned."},
+      "quadrants": {"type": "object", "description": "Influence/interest matrix quadrants (analyze)."},
+      "matrix_markdown": {"type": "string", "description": "Markdown table of the influence/interest matrix (analyze)."},
+      "raci_summary": {"type": "object", "description": "Count per position category (analyze)."},
+      "message": {"type": "string", "description": "Human-readable confirmation."}
+    }
+  }
+}

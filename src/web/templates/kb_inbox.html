@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Action Inbox — 4S1T{% endblock %}
+{% block page_title %}Action Inbox{% endblock %}
+{% block topbar_actions %}
+<button class="v05-btn v05-btn-outline v05-btn-sm" onclick="triggerExtraction()">
+    <span data-icon="refresh" data-icon-size="14"></span> Run now
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">Action Inbox</div>
+    <div class="page-subtitle">Actionable items extracted nightly from your knowledge base</div>
+</div>
+
+<!-- Filters -->
+<div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem; align-items:center;">
+    <select id="filter-status" onchange="loadInbox()" class="v05-select" style="font-size:13px;">
+        <option value="">All statuses</option>
+        <option value="pending" selected>Pending</option>
+        <option value="done">Done</option>
+        <option value="dismissed">Dismissed</option>
+    </select>
+    <select id="filter-urgency" onchange="loadInbox()" class="v05-select" style="font-size:13px;">
+        <option value="">All urgencies</option>
+        <option value="high">High</option>
+        <option value="normal">Normal</option>
+        <option value="low">Low</option>
+    </select>
+    <select id="filter-domain" onchange="loadInbox()" class="v05-select" style="font-size:13px;">
+        <option value="">All domains</option>
+    </select>
+    <span id="item-count" style="color:var(--t-2); font-size:12px; margin-left:auto;"></span>
+</div>
+
+<!-- Item list -->
+<div id="inbox-list" style="display:flex; flex-direction:column; gap:0.5rem;">
+    <div class="v05-card" style="padding:14px 18px; color:var(--t-2);">Loading…</div>
+</div>
+
+<div id="status-bar" style="color:var(--t-2); font-size:0.85rem; margin-top:0.5rem; min-height:1.2em;"></div>
+
+<script>
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;'}[m]));
+}
+
+function setStatus(msg, color) {
+    const el = document.getElementById('status-bar');
+    el.textContent = '$ ' + msg;
+    el.style.color = color || 'var(--t-2)';
+}
+
+function ageLabel(ts) {
+    if (!ts) return '—';
+    const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+    if (diff < 3600) return Math.round(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.round(diff / 3600) + 'h ago';
+    return Math.round(diff / 86400) + 'd ago';
+}
+
+const URGENCY_COLOR = { high: 'var(--err)', normal: 'var(--warn)', low: 'var(--t-3)' };
+const URGENCY_LABEL = { high: '⚡ High', normal: '· Normal', low: '↓ Low' };
+
+async function loadInbox() {
+    const statusFilter = document.getElementById('filter-status').value;
+    const urgency = document.getElementById('filter-urgency').value;
+    const domain = document.getElementById('filter-domain').value;
+
+    const params = new URLSearchParams();
+    if (statusFilter) params.set('status_filter', statusFilter);
+    if (urgency) params.set('urgency', urgency);
+    if (domain) params.set('domain', domain);
+
+    try {
+        const r = await fetch('/api/v1/kb/inbox?' + params, { credentials: 'include' });
+        if (!r.ok) throw new Error(r.statusText);
+        const items = (await r.json()).items || [];
+        renderInbox(items);
+        document.getElementById('item-count').textContent = items.length + ' item' + (items.length === 1 ? '' : 's');
+    } catch (e) {
+        setStatus('Failed: ' + e.message, 'var(--err)');
+    }
+}
+
+function renderInbox(items) {
+    const el = document.getElementById('inbox-list');
+    if (!items.length) {
+        el.innerHTML = `<div class="v05-card" style="padding:14px 18px; color:var(--t-2);">No action items match the selected filters.</div>`;
+        return;
+    }
+
+    // Populate domain filter options from items (once)
+    const domainSel = document.getElementById('filter-domain');
+    const existing = new Set([...domainSel.options].map(o => o.value).filter(Boolean));
+    const domains = [...new Set(items.map(i => i.domain).filter(Boolean))].sort();
+    for (const d of domains) {
+        if (!existing.has(d)) {
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = d;
+            domainSel.appendChild(opt);
+        }
+    }
+
+    el.innerHTML = items.map(item => {
+        const urgColor = URGENCY_COLOR[item.urgency] || 'var(--t-2)';
+        const urgLabel = URGENCY_LABEL[item.urgency] || item.urgency;
+        const isDone = item.status === 'done';
+        const isDismissed = item.status === 'dismissed';
+        const textStyle = isDone || isDismissed ? 'text-decoration:line-through; opacity:0.5;' : '';
+
+        return `<div class="v05-card" style="display:flex; align-items:flex-start; gap:1rem; flex-wrap:wrap; padding:14px 18px;" id="item-${escapeHtml(item.id)}">
+            <div style="flex:1; min-width:220px;">
+                <p style="font-size:13.5px; font-weight:600; margin-bottom:0.3rem; ${textStyle}">${escapeHtml(item.action_text)}</p>
+                ${item.context_snippet ? `<p style="color:var(--t-2); font-size:12px; font-style:italic; margin-bottom:0.25rem;">"${escapeHtml(item.context_snippet)}"</p>` : ''}
+                <p style="color:var(--t-3); font-size:11px;">
+                    <span style="color:${urgColor}; font-weight:600;">${urgLabel}</span>
+                    ${item.domain ? ` · ${escapeHtml(item.domain)}` : ''}
+                    ${item.account_name ? ` · ${escapeHtml(item.account_name)}` : ''}
+                    · ${ageLabel(item.extracted_at)}
+                </p>
+            </div>
+            <div style="display:flex; gap:0.4rem; flex-shrink:0; align-items:center;">
+                ${!isDone ? `<button onclick="setItemStatus('${escapeHtml(item.id)}', 'done')" class="v05-btn v05-btn-outline v05-btn-sm" title="Mark done">✓ Done</button>` : ''}
+                ${!isDismissed ? `<button onclick="setItemStatus('${escapeHtml(item.id)}', 'dismissed')" class="v05-btn v05-btn-ghost v05-btn-sm" title="Dismiss">✕</button>` : ''}
+                ${isDone || isDismissed ? `<button onclick="setItemStatus('${escapeHtml(item.id)}', 'pending')" class="v05-btn v05-btn-ghost v05-btn-sm" title="Reopen">↩</button>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function setItemStatus(id, newStatus) {
+    try {
+        const r = await fetch(`/api/v1/kb/inbox/${id}`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus }),
+        });
+        if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+        loadInbox();
+        updateBadge();
+    } catch (e) {
+        setStatus('Failed: ' + e.message, 'var(--err)');
+    }
+}
+
+async function triggerExtraction() {
+    setStatus('Starting extraction…', 'var(--warn)');
+    try {
+        const r = await fetch('/api/v1/kb/inbox/run', { method: 'POST', credentials: 'include' });
+        if (!r.ok) throw new Error(r.statusText);
+        setStatus('Extraction started — refresh in a minute.', 'var(--live)');
+    } catch (e) {
+        setStatus('Failed: ' + e.message, 'var(--err)');
+    }
+}
+
+async function updateBadge() {
+    try {
+        const r = await fetch('/api/v1/kb/inbox/count', { credentials: 'include' });
+        if (!r.ok) return;
+        const { pending } = await r.json();
+        const badge = document.getElementById('inbox-badge');
+        if (badge) {
+            badge.textContent = pending > 0 ? String(pending) : '';
+            badge.style.display = pending > 0 ? 'inline-flex' : 'none';
+        }
+    } catch (_) {}
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadInbox();
+    updateBadge();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}KB Briefs — 4S1T{% endblock %}
+{% block page_title %}Briefs{% endblock %}
+{% block topbar_actions %}
+<button class="v05-btn v05-btn-outline v05-btn-sm" onclick="triggerBriefs(null)">
+    <span data-icon="sparkles" data-icon-size="14"></span> {{ t('kb.generate_all') }}
+</button>
+{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">{{ t('kb.briefs_title') }}</div>
+    <div class="page-subtitle">{{ t('kb.briefs_subtitle') }}</div>
+</div>
+
+<!-- Domain filter tabs -->
+<div style="display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap;" id="domain-tabs">
+    <button class="v05-btn v05-btn-outline v05-btn-sm brief-tab active" data-domain="">{{ t('kb.tab_all') }}</button>
+    {%- for d in kb_domains %}
+    <button class="v05-btn v05-btn-outline v05-btn-sm brief-tab" data-domain="{{ d.id }}">{{ d.display_name }}</button>
+    {%- endfor %}
+</div>
+
+<!-- Brief cards list -->
+<div id="briefs-cards" style="margin-bottom:20px;">
+    <div style="color:var(--t-2); padding:20px 0;">{{ t('common.loading') }}</div>
+</div>
+
+<!-- Brief content panel (shown when a brief is opened) -->
+<div id="brief-content-wrap" style="display:none;">
+    <div class="v05-card" style="padding:0; margin-bottom:14px;">
+        <div class="card-header">
+            <div id="brief-content-dot" style="width:8px;height:8px;border-radius:50%;background:var(--t-3);flex-shrink:0;"></div>
+            <div class="card-title" id="brief-content-title">Brief</div>
+            <button onclick="toggleRaw()" class="v05-btn v05-btn-ghost v05-btn-sm" id="raw-btn">{{ t('kb.briefs_raw_btn') }}</button>
+            <button id="regen-btn" onclick="regenBrief()" class="v05-btn v05-btn-ghost v05-btn-sm">↺ {{ t('kb.brief_regen') }}</button>
+            <button onclick="closeBriefContent()" class="v05-btn v05-btn-ghost v05-btn-sm" style="margin-left:auto;">✕ {{ t('kb.brief_close') }}</button>
+        </div>
+        <div class="card-body">
+            <div id="brief-rendered" style="line-height:1.7; color:var(--t);"></div>
+            <pre id="brief-raw" style="display:none; white-space:pre-wrap; font-size:0.8rem; color:var(--t-2); overflow-x:auto; margin:0;"></pre>
+        </div>
+    </div>
+</div>
+
+<div id="status-bar" style="color:var(--t-2); font-size:0.85rem; margin-top:0.5rem; min-height:1.2em;"></div>
+
+<style>
+.brief-tab.active {
+    background: var(--s2) !important;
+    border-color: var(--t) !important;
+    color: var(--t) !important;
+}
+</style>
+
+<script>
+const _b_i18n = {
+    delivered:   '{{ t("kb.brief_delivered") }}',
+    local:       '{{ t("kb.brief_local") }}',
+    read:        '{{ t("kb.brief_read") }}',
+    regen:       '{{ t("kb.brief_regen") }}',
+    close:       '{{ t("kb.brief_close") }}',
+    months: ['{{ t("kb.month_jan") }}','{{ t("kb.month_feb") }}','{{ t("kb.month_mar") }}',
+             '{{ t("kb.month_apr") }}','{{ t("kb.month_may") }}','{{ t("kb.month_jun") }}',
+             '{{ t("kb.month_jul") }}','{{ t("kb.month_aug") }}','{{ t("kb.month_sep") }}',
+             '{{ t("kb.month_oct") }}','{{ t("kb.month_nov") }}','{{ t("kb.month_dec") }}'],
+    regen_trigger: '{{ t("kb.briefs_regen_trigger") }}',
+    gen_trigger:   '{{ t("kb.briefs_gen_trigger") }}',
+    regen_started: '{{ t("kb.briefs_regen_started") }}',
+    gen_started:   '{{ t("kb.briefs_gen_started") }}',
+};
+
+let _currentDomain = null;
+let _currentDate = null;
+let _rawMode = false;
+let _allBriefs = [];
+
+// Domain dot colors
+const BRIEF_DOMAIN_COLORS = {
+    {%- for d in kb_domains %}
+    '{{ d.id }}': '{{ d.color }}',
+    {%- endfor %}
+};
+
+function setStatus(msg, color) {
+    const el = document.getElementById('status-bar');
+    el.textContent = '$ ' + msg;
+    el.style.color = color || 'var(--t-2)';
+}
+
+function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;'}[m]));
+}
+
+// Tab click handling
+document.getElementById('domain-tabs').addEventListener('click', e => {
+    const btn = e.target.closest('.brief-tab');
+    if (!btn) return;
+    document.querySelectorAll('.brief-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const domain = btn.dataset.domain;
+    renderBriefCards(domain ? _allBriefs.filter(b => b.domain === domain) : _allBriefs);
+});
+
+async function loadBriefList() {
+    try {
+        const r = await fetch('/api/v1/kb/briefs', {credentials:'include'});
+        if (!r.ok) throw new Error(r.statusText);
+        _allBriefs = (await r.json()).briefs || [];
+        renderBriefCards(_allBriefs);
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+function fmtDate(d) {
+    // d is like "2026-03-14"
+    if (!d) return '';
+    const parts = d.split('-');
+    if (parts.length !== 3) return d;
+    return `${parseInt(parts[2])} ${_b_i18n.months[parseInt(parts[1])-1]} ${parts[0]}`;
+}
+
+const BRIEF_DOMAIN_LABELS = {
+    {%- for d in kb_domains %}
+    '{{ d.id }}': '{{ d.display_name | e }}',
+    {%- endfor %}
+};
+
+function domainLabel(d) {
+    return BRIEF_DOMAIN_LABELS[d] || d;
+}
+
+function renderBriefCards(briefs) {
+    const container = document.getElementById('briefs-cards');
+    if (!briefs.length) {
+        container.innerHTML = `<div style="color:var(--t-2); padding:20px 0;">{{ t("kb.no_briefs") }}</div>`;
+        return;
+    }
+    container.innerHTML = briefs.map(b => {
+        const color = BRIEF_DOMAIN_COLORS[b.domain] || 'var(--t-3)';
+        const delivered = b.delivered ? `<span class="tag tag-live">${_b_i18n.delivered}</span>` : `<span class="tag tag-warn">${_b_i18n.local}</span>`;
+        const preview = escapeHtml((b.preview || '').slice(0, 180));
+        const isSelected = _currentDomain === b.domain && _currentDate === b.date;
+        return `<div class="v05-card" style="padding:0; margin-bottom:10px; ${isSelected ? 'border-color:var(--t);' : ''}">
+            <div class="card-header">
+                <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></div>
+                <div class="card-title">${escapeHtml(domainLabel(b.domain))} · ${escapeHtml(fmtDate(b.date))}</div>
+                ${delivered}
+                <button class="v05-btn v05-btn-ghost v05-btn-sm" style="margin-left:auto;"
+                        onclick="loadBrief('${escapeHtml(b.domain)}','${escapeHtml(b.date)}')">${_b_i18n.read} →</button>
+            </div>
+            ${preview ? `<div class="card-body-sm" style="color:var(--t-2); font-size:12.5px; line-height:1.6;">${preview}…</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+async function loadBrief(domain, date) {
+    _currentDomain = domain;
+    _currentDate = date;
+    _rawMode = false;
+
+    document.getElementById('brief-rendered').innerHTML = '<p style="color:var(--t-2);">Loading…</p>';
+    document.getElementById('brief-raw').textContent = '';
+    document.getElementById('brief-raw').style.display = 'none';
+    document.getElementById('brief-rendered').style.display = 'block';
+
+    try {
+        const r = await fetch(`/api/v1/kb/briefs/${domain}/${date}`, {credentials:'include'});
+        if (!r.ok) throw new Error(r.statusText);
+        const data = await r.json();
+
+        const color = BRIEF_DOMAIN_COLORS[domain] || '#888';
+        document.getElementById('brief-content-dot').style.background = color;
+        document.getElementById('brief-content-title').textContent = `${domainLabel(domain)} · ${fmtDate(date)}`;
+        document.getElementById('regen-btn').dataset.domain = domain;
+        document.getElementById('brief-raw').textContent = data.content;
+        const html = DOMPurify.sanitize(marked.parse(data.content));
+        document.getElementById('brief-rendered').innerHTML = html;
+        document.getElementById('brief-content-wrap').style.display = 'block';
+        document.getElementById('brief-content-wrap').scrollIntoView({behavior:'smooth', block:'start'});
+
+        // Refresh cards to highlight selected
+        const activeDomain = document.querySelector('.brief-tab.active')?.dataset.domain || '';
+        renderBriefCards(activeDomain ? _allBriefs.filter(b => b.domain === activeDomain) : _allBriefs);
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+function closeBriefContent() {
+    document.getElementById('brief-content-wrap').style.display = 'none';
+    _currentDomain = null;
+    _currentDate = null;
+}
+
+function toggleRaw() {
+    _rawMode = !_rawMode;
+    document.getElementById('brief-rendered').style.display = _rawMode ? 'none' : 'block';
+    document.getElementById('brief-raw').style.display = _rawMode ? 'block' : 'none';
+}
+
+async function regenBrief() {
+    if (!_currentDomain) return;
+    setStatus(_b_i18n.regen_trigger + ' ' + _currentDomain + '…', 'var(--warn)');
+    try {
+        const r = await fetch('/api/v1/kb/generate-briefs', {
+            method:'POST', credentials:'include',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({domain: _currentDomain})
+        });
+        const d = await r.json();
+        setStatus(d.message || _b_i18n.regen_started, 'var(--live)');
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+async function triggerBriefs(domain) {
+    setStatus(_b_i18n.gen_trigger, 'var(--warn)');
+    try {
+        const r = await fetch('/api/v1/kb/generate-briefs', {
+            method:'POST', credentials:'include',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({domain: domain || null})
+        });
+        const d = await r.json();
+        setStatus(d.message || _b_i18n.gen_started, 'var(--live)');
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+document.addEventListener('DOMContentLoaded', loadBriefList);
+</script>
+{% endblock %}

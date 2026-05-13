@@ -1,0 +1,37 @@
+{
+  "name": "requirements_template",
+  "version": "1.0.0",
+  "description": "Generate a standard BA artifact template structure. Returns a pre-formatted template for the requested artifact type (use case, BRD, stakeholder register, etc.) with section headings and guidance notes. The calling agent then fills in the content.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 5,
+  "max_memory_mb": 64,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "artifact_type": {
+        "type": "string",
+        "description": "Type of BA artifact template to generate",
+        "enum": ["use_case", "brd", "urd", "stakeholder_register", "business_case", "process_narrative"]
+      },
+      "project_name": {
+        "type": "string",
+        "description": "Project or initiative name to pre-fill in the template",
+        "default": ""
+      }
+    },
+    "required": ["artifact_type"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "template_markdown": {"type": "string", "description": "Formatted template as markdown"},
+      "sections": {"type": "array", "items": {"type": "string"}, "description": "List of section names in the template"},
+      "guidance": {"type": "string", "description": "Brief guidance note on how to use the template"}
+    }
+  }
+}

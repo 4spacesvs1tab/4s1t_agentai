@@ -1,0 +1,42 @@
+{
+  "name": "python_execute",
+  "version": "1.0.0",
+  "description": "Execute Python code for data analysis in an isolated Docker container. The container has pandas, numpy, matplotlib, plotly, scipy, and openpyxl available. Write outputs to /output/ inside the container — files are returned as paths. No network access inside the container.",
+  "agent_scope": ["data_agent"],
+  "execution_mode": "docker",
+  "timeout_seconds": 60,
+  "max_memory_mb": 512,
+  "network_allowed": false,
+  "filesystem_access": "read_write",
+  "secrets_required": [],
+  "requires_approval": true,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Python code to execute. Use /data/ for input files and /output/ for output files."
+      },
+      "data_files": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "List of data file paths (relative to FILE_READ_BASE_DIR) to mount at /data/ in the container.",
+        "default": []
+      }
+    },
+    "required": ["code"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "stdout": {"type": "string", "description": "Standard output from the code"},
+      "stderr": {"type": "string", "description": "Standard error (warnings, tracebacks)"},
+      "output_files": {
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "List of files written to /output/ during execution"
+      },
+      "exit_code": {"type": "integer"}
+    }
+  }
+}

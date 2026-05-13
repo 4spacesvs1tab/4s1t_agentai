@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}KB Schedule — 4S1T{% endblock %}
+{% block page_title %}{{ t('nav.kb_schedule') }}{% endblock %}
+{% block topbar_actions %}
+<button class="v05-btn v05-btn-outline v05-btn-sm" onclick="saveAll()" id="btn-save">
+    <span data-icon="check" data-icon-size="14"></span> {{ t('kb.save_changes') }}
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">{{ t('kb.schedule_title') }}</div>
+    <div class="page-subtitle">{{ t('kb.schedule_subtitle') }}</div>
+</div>
+
+<div class="v05-card" style="padding:0; margin-bottom:14px;">
+    <table style="width:100%; border-collapse:collapse;" id="schedule-table">
+        <thead>
+            <tr>
+                <th style="padding:12px 18px; text-align:left; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--t-3); border-bottom:1px solid var(--b); width:180px;">{{ t('nav.knowledge_base') }}</th>
+                <th style="padding:12px 18px; text-align:left; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--t-3); border-bottom:1px solid var(--b); width:160px;">{{ t('kb.daily') }} / {{ t('kb.weekly') }}</th>
+                <th style="padding:12px 18px; text-align:left; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--t-3); border-bottom:1px solid var(--b); width:130px;">{{ t('kb.schedule_day_col') }}</th>
+                <th style="padding:12px 18px; text-align:left; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--t-3); border-bottom:1px solid var(--b); width:120px;">{{ t('kb.time_utc') }}</th>
+                <th style="padding:12px 18px; text-align:center; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--t-3); border-bottom:1px solid var(--b); width:80px;">{{ t('kb.enabled') }}</th>
+            </tr>
+        </thead>
+        <tbody id="schedule-tbody">
+            <tr><td colspan="5" style="padding:20px 18px; color:var(--t-3);">{{ t('common.loading') }}</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div id="status-bar" style="color:var(--t-2); font-size:0.85rem; margin-top:0.5rem; min-height:1.2em;"></div>
+
+<style>
+.sched-row td { padding: 11px 18px; border-bottom: 1px solid var(--b); vertical-align: middle; }
+.sched-row:last-child td { border-bottom: none; }
+.sched-row:hover td { background: var(--s2); }
+.domain-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 600;
+}
+.domain-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sched-select {
+    background: var(--s2); border: 1px solid var(--b); color: var(--t);
+    border-radius: var(--r-xs); padding: 5px 8px; font-size: 12.5px;
+    font-family: inherit; outline: none; cursor: pointer;
+    transition: border-color var(--t-fast);
+}
+.sched-select:focus { border-color: var(--b-hi); }
+.sched-time {
+    background: var(--s2); border: 1px solid var(--b); color: var(--t);
+    border-radius: var(--r-xs); padding: 5px 8px; font-size: 12.5px;
+    font-family: inherit; outline: none; width: 100px;
+    transition: border-color var(--t-fast); -webkit-appearance: none;
+    color-scheme: dark;
+}
+[data-theme="light"] .sched-time { color-scheme: light; }
+.sched-time:focus { border-color: var(--b-hi); }
+/* Toggle — monochrome (uses --t-2 instead of green) */
+.sched-toggle { position: relative; width: 40px; height: 22px; cursor: pointer; display: inline-block; -webkit-tap-highlight-color: transparent; }
+.sched-toggle input { display: none; }
+.sched-toggle-track {
+    width: 40px; height: 22px; background: var(--s4); border-radius: 11px;
+    border: 1px solid var(--b-med); transition: background var(--t-med), border-color var(--t-med); position: relative; display: block;
+}
+.sched-toggle input:checked + .sched-toggle-track { background: var(--t-2); border-color: var(--b-hi); }
+.sched-toggle-track::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; background: var(--t); border-radius: 50%;
+    transition: transform var(--t-med); box-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+.sched-toggle input:checked + .sched-toggle-track::after { transform: translateX(18px); }
+</style>
+
+<script>
+const _sched_i18n = {
+    day_mon: '{{ t("kb.day_mon") }}',
+    day_tue: '{{ t("kb.day_tue") }}',
+    day_wed: '{{ t("kb.day_wed") }}',
+    day_thu: '{{ t("kb.day_thu") }}',
+    day_fri: '{{ t("kb.day_fri") }}',
+    day_sat: '{{ t("kb.day_sat") }}',
+    day_sun: '{{ t("kb.day_sun") }}',
+    daily:   '{{ t("kb.daily") }}',
+    weekly:  '{{ t("kb.weekly") }}',
+    all:     '{{ t("common.all") }}',
+    saving:  '{{ t("kb.schedule_saving") }}',
+    saved:   '{{ t("kb.schedule_saved") }}',
+    saved_errors: '{{ t("kb.schedule_saved_errors") }}',
+};
+const DAY_LABELS = {
+    mon: _sched_i18n.day_mon, tue: _sched_i18n.day_tue, wed: _sched_i18n.day_wed,
+    thu: _sched_i18n.day_thu, fri: _sched_i18n.day_fri, sat: _sched_i18n.day_sat, sun: _sched_i18n.day_sun
+};
+const DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
+
+const DOMAIN_COLORS = {
+    {%- for d in kb_domains %}
+    '{{ d.id }}': '{{ d.color }}',
+    {%- endfor %}
+};
+
+const DOMAIN_LABELS = {
+    {%- for d in kb_domains %}
+    '{{ d.id }}': '{{ d.display_name | e }}',
+    {%- endfor %}
+};
+
+let _schedule = [];
+
+function setStatus(msg, color) {
+    const el = document.getElementById('status-bar');
+    el.textContent = '$ ' + msg;
+    el.style.color = color || 'var(--t-2)';
+}
+
+/* Derive schedule type from brief_days:
+   - all 7 days (or empty with enabled) → daily
+   - single day → weekly on that day
+   - multiple days → treat first as weekly day (simplified UI)
+*/
+function getScheduleType(cfg) {
+    const days = cfg.brief_days || [];
+    if (days.length === 7) return 'daily';
+    if (days.length === 0) return 'daily';
+    return 'weekly';
+}
+
+function getWeeklyDay(cfg) {
+    const days = cfg.brief_days || [];
+    if (days.length === 0 || days.length === 7) return 'mon';
+    return days[0];
+}
+
+async function loadSchedule() {
+    try {
+        const r = await fetch('/api/v1/kb/schedule', {credentials:'include'});
+        if (!r.ok) throw new Error(r.statusText);
+        _schedule = (await r.json()).schedule || [];
+        renderTable();
+    } catch(e) { setStatus('Failed: ' + e.message, 'var(--err)'); }
+}
+
+function renderTable() {
+    const tbody = document.getElementById('schedule-tbody');
+    if (!_schedule.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding:20px 18px; color:var(--t-3);">{{ t("kb.no_domains") }}</td></tr>';
+        return;
+    }
+    tbody.innerHTML = _schedule.map((cfg, idx) => {
+        const color = DOMAIN_COLORS[cfg.domain] || 'var(--t-3)';
+        const label = DOMAIN_LABELS[cfg.domain] || cfg.domain;
+        const type = getScheduleType(cfg);
+        const weeklyDay = getWeeklyDay(cfg);
+
+        const dayOptions = DAY_KEYS.map(d =>
+            `<option value="${d}" ${weeklyDay === d ? 'selected' : ''}>${DAY_LABELS[d]}</option>`
+        ).join('');
+
+        return `<tr class="sched-row">
+            <td>
+                <div class="domain-pill">
+                    <span class="domain-dot" style="background:${color};"></span>
+                    <span>${label}</span>
+                </div>
+            </td>
+            <td>
+                <select class="sched-select sched-type" data-idx="${idx}" onchange="onTypeChange(${idx})">
+                    <option value="daily" ${type === 'daily' ? 'selected' : ''}>${_sched_i18n.daily}</option>
+                    <option value="weekly" ${type === 'weekly' ? 'selected' : ''}>${_sched_i18n.weekly}</option>
+                </select>
+            </td>
+            <td id="day-cell-${idx}">
+                <span id="day-all-${idx}" style="font-size:12.5px; color:var(--t-3); ${type !== 'daily' ? 'display:none;' : ''}">${_sched_i18n.all}</span>
+                <select class="sched-select sched-day" data-idx="${idx}" style="${type === 'daily' ? 'display:none;' : ''}">
+                    ${dayOptions}
+                </select>
+            </td>
+            <td>
+                <input type="time" class="sched-time" data-idx="${idx}" value="${cfg.brief_time || '07:00'}">
+            </td>
+            <td style="text-align:center;">
+                <label class="sched-toggle" title="Enable brief generation">
+                    <input type="checkbox" data-idx="${idx}" ${cfg.brief_enabled ? 'checked' : ''}>
+                    <div class="sched-toggle-track"></div>
+                </label>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function onTypeChange(idx) {
+    const sel = document.querySelector(`.sched-type[data-idx="${idx}"]`);
+    const isWeekly = sel.value === 'weekly';
+    const allSpan = document.getElementById(`day-all-${idx}`);
+    const daySel = document.querySelector(`.sched-day[data-idx="${idx}"]`);
+    if (allSpan) allSpan.style.display = isWeekly ? 'none' : '';
+    if (daySel) daySel.style.display = isWeekly ? '' : 'none';
+}
+
+async function saveAll() {
+    const btn = document.getElementById('btn-save');
+    btn.disabled = true;
+    setStatus(_sched_i18n.saving, 'var(--warn)');
+    let errors = 0;
+
+    for (let idx = 0; idx < _schedule.length; idx++) {
+        const cfg = _schedule[idx];
+        const typeEl = document.querySelector(`.sched-type[data-idx="${idx}"]`);
+        const dayEl  = document.querySelector(`.sched-day[data-idx="${idx}"]`);
+        const timeEl = document.querySelector(`.sched-time[data-idx="${idx}"]`);
+        const cbEl   = document.querySelector(`.sched-toggle input[data-idx="${idx}"]`);
+
+        const schedType = typeEl ? typeEl.value : 'daily';
+        const day = dayEl ? dayEl.value : 'mon';
+        const brief_days = schedType === 'daily' ? ['mon','tue','wed','thu','fri','sat','sun'] : [day];
+        const brief_time = timeEl ? timeEl.value : (cfg.brief_time || '07:00');
+        const brief_enabled = cbEl ? cbEl.checked : cfg.brief_enabled;
+
+        try {
+            const r = await fetch(`/api/v1/kb/schedule/${cfg.domain}`, {
+                method: 'PUT', credentials: 'include',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    brief_enabled,
+                    brief_days,
+                    brief_time,
+                    brief_min_items: cfg.brief_min_items || 3,
+                })
+            });
+            if (!r.ok) errors++;
+        } catch { errors++; }
+    }
+
+    btn.disabled = false;
+    if (errors) {
+        setStatus(_sched_i18n.saved_errors.replace('{n}', errors), 'var(--warn)');
+    } else {
+        setStatus(_sched_i18n.saved, 'var(--live)');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadSchedule);
+</script>
+{% endblock %}

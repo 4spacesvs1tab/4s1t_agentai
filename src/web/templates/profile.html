@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+
+{% block title %}Profile — 4S1T{% endblock %}
+{% block page_title %}Profile{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title">{{ t('profile.page_title') }}</div>
+    <div class="page-subtitle">{{ t('profile.page_subtitle') }}</div>
+</div>
+
+<div class="grid-2" style="margin-bottom:20px;">
+
+    <!-- LEFT COLUMN -->
+    <div>
+        <!-- Account info -->
+        <div class="settings-section">
+            <!-- Username / role row -->
+            <div class="settings-row" style="padding:11px 18px;">
+                <div class="settings-row-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                </div>
+                <div class="settings-row-info">
+                    <div class="settings-row-label">{{ user.username if user.username else user.id }}</div>
+                    <div class="settings-row-desc">{{ user.role }} · <code style="font-size:11px;">{{ user.id }}</code></div>
+                </div>
+                <span class="tag tag-live">{{ t('profile.active') }}</span>
+            </div>
+
+            <!-- Default model row -->
+            <div class="settings-row" style="padding:11px 18px;">
+                <div class="settings-row-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                </div>
+                <div class="settings-row-info">
+                    <div class="settings-row-label">{{ t('profile.ai_prefs_title') }}</div>
+                    <div class="settings-row-desc" id="ai-prefs-status">{{ t('profile.ai_prefs_hint') }}</div>
+                </div>
+            </div>
+
+            <!-- PII Scrubbing toggle row -->
+            <div class="settings-row" style="padding:11px 18px;">
+                <div class="settings-row-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div class="settings-row-info">
+                    <div class="settings-row-label">{{ t('profile.pii_scrubbing_label') }}</div>
+                    <div class="settings-row-desc">{{ t('profile.pii_scrubbing_desc') }}</div>
+                </div>
+                <form method="post" action="/profile/pii-scrubbing" id="pii-form">
+                    <label class="toggle" title="Toggle PII scrubbing" onchange="document.getElementById('pii-form').submit()">
+                        <input type="checkbox" name="pii_scrubbing_enabled" value="on"
+                               {% if user.pii_scrubbing_enabled %}checked{% endif %}>
+                        <div class="toggle-track"></div>
+                    </label>
+                </form>
+            </div>
+
+            <!-- Language row -->
+            <div class="settings-row" style="padding:11px 18px;">
+                <div class="settings-row-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </div>
+                <div class="settings-row-info">
+                    <div class="settings-row-label">{{ t('profile.language_title') }}</div>
+                    <div class="settings-row-desc">{{ t('profile.language_hint') }}</div>
+                </div>
+                <form method="post" action="/profile/language">
+                    <select name="language_preference" onchange="this.form.submit()"
+                            style="background:var(--s2); color:var(--t); border:1px solid var(--b-med); border-radius:var(--r-sm); padding:4px 8px; font-size:12px; cursor:pointer;">
+                        {% for code, display in languages.items() %}
+                        <option value="{{ code }}" {% if (user.language_preference or 'en') == code %}selected{% endif %}>
+                            {{ display }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+
+            <!-- Nostr pubkey row -->
+            <div class="settings-row" style="padding:11px 18px;">
+                <div class="settings-row-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <div class="settings-row-info">
+                    <div class="settings-row-label">Nostr Pubkey</div>
+                    <div class="settings-row-desc" id="nostr-pubkey-display" style="font-family:monospace; font-size:11px; word-break:break-all;">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Change password card -->
+        <div class="v05-card" style="padding:0; margin-bottom:14px;">
+            <div class="card-header">
+                <div class="card-title">{{ t('profile.update_password') }}</div>
+            </div>
+            <div class="card-body">
+                {% if message %}
+                <div class="{% if success %}success{% else %}error{% endif %}" style="margin-bottom:12px;">
+                    $> {{ message }}
+                </div>
+                {% endif %}
+                <form method="post" action="/profile">
+                    <div class="form-group" style="margin-bottom:10px;">
+                        <label for="current_password">{{ t('profile.current_password') }}</label>
+                        <input type="password" id="current_password" name="current_password"
+                               placeholder="{{ t('profile.placeholder_current') }}">
+                    </div>
+                    <div class="form-group" style="margin-bottom:10px;">
+                        <label for="new_password">{{ t('profile.new_password') }}</label>
+                        <input type="password" id="new_password" name="new_password"
+                               placeholder="{{ t('profile.placeholder_new') }}" minlength="6">
+                    </div>
+                    <div class="form-group" style="margin-bottom:14px;">
+                        <label for="confirm_password">{{ t('profile.confirm_password') }}</label>
+                        <input type="password" id="confirm_password" name="confirm_password"
+                               placeholder="{{ t('profile.placeholder_confirm') }}" minlength="6">
+                    </div>
+                    <button type="submit" class="v05-btn v05-btn-primary v05-btn-sm">
+                        {{ t('profile.submit_password') }}
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- AI preferences card -->
+        <div class="settings-section">
+            {% for route_id, route_label in [('webui', t('profile.webui_chat')), ('nip17', t('profile.nostr_nip17')), ('api', t('profile.api_default'))] %}
+            <div class="settings-row" style="padding:11px 18px; flex-wrap:wrap; gap:10px;">
+                <div class="settings-row-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                </div>
+                <div class="settings-row-info">
+                    <div class="settings-row-label">{{ route_label }}</div>
+                    <div class="settings-row-desc" id="pref-status-{{ route_id }}">{{ t('profile.ai_prefs_hint') }}</div>
+                </div>
+                <div style="display:flex; gap:6px; align-items:center; flex-shrink:0;">
+                    <select id="pref-provider-{{ route_id }}" onchange="loadModelsForRoute('{{ route_id }}')"
+                            style="width:auto; height:30px; font-size:12px; padding:2px 6px;">
+                        <option value="">{{ t('profile.system_default') }}</option>
+                    </select>
+                    <select id="pref-model-{{ route_id }}" style="width:auto; height:30px; font-size:12px; padding:2px 6px; max-width:180px;"></select>
+                    <button type="button" onclick="savePref('{{ route_id }}')" class="v05-btn v05-btn-outline v05-btn-sm">{{ t('common.save') }}</button>
+                </div>
+            </div>
+            {% endfor %}
+            <!-- Favourites row -->
+            <div class="settings-row" style="padding:11px 18px; flex-direction:column; align-items:flex-start; gap:8px;">
+                <div style="font-size:12px; font-weight:600; color:var(--t);">{{ t('profile.favourites_title') }}</div>
+                <div id="favourites-list" style="font-size:12px; color:var(--t-2);">{{ t('profile.loading') }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div>
+        <!-- Appearance card -->
+        <div class="v05-card" style="padding:0; margin-bottom:14px;">
+            <div class="card-header">
+                <div class="card-title">{{ t('profile.theme_title') }}</div>
+            </div>
+            <div class="card-body">
+                <p style="color:var(--t-2); font-size:12px; margin-bottom:14px;">{{ t('profile.theme_hint') }}</p>
+                {% if theme_message %}
+                <div class="{% if theme_success %}success{% else %}error{% endif %}" style="margin-bottom:12px;">
+                    $> {{ theme_message }}
+                </div>
+                {% endif %}
+                <div class="theme-chips" id="theme-chips">
+                    <button type="button" id="chip-dark" class="theme-chip" onclick="setThemeChip('dark')">
+                        {{ t('profile.theme_dark_label') }}
+                    </button>
+                    <button type="button" id="chip-light" class="theme-chip" onclick="setThemeChip('light')">
+                        {{ t('profile.theme_light_label') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trusted Nostr Contacts card -->
+        <div class="v05-card" style="padding:0; margin-bottom:14px;">
+            <div class="card-header">
+                <div class="card-title">{{ t('profile.nostr_contacts_title') }}</div>
+            </div>
+            <div class="card-body">
+                <p style="color:var(--t-2); font-size:12px; margin-bottom:12px;">{{ t('profile.nostr_contacts_hint') }}</p>
+                <div id="nostr-contacts-status" style="margin-bottom:8px; font-size:12px; min-height:1em;"></div>
+                <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                    <input type="text" id="nostr-add-npub" placeholder="{{ t('profile.add_npub_placeholder') }}" style="flex:1; min-width:160px; font-size:12px;">
+                    <input type="text" id="nostr-add-name" placeholder="{{ t('profile.add_name_placeholder') }}" style="width:120px; font-size:12px;">
+                    <button type="button" onclick="addNostrContact()" class="v05-btn v05-btn-outline v05-btn-sm">{{ t('profile.add_trusted_btn') }}</button>
+                </div>
+                <div id="nostr-contacts-list" style="font-size:12px; color:var(--t-2);">{{ t('profile.loading') }}</div>
+            </div>
+        </div>
+
+        <!-- Danger zone card -->
+        <div class="v05-card" style="padding:0; border-color:var(--err-dim);">
+            <div class="card-header" style="border-color:var(--err-dim);">
+                <div class="card-title" style="color:var(--err);">{{ t('profile.danger_zone') }}</div>
+            </div>
+            <div class="card-body">
+                <div class="settings-row" style="border:none; padding:0;">
+                    <div class="settings-row-info">
+                        <div class="settings-row-label">{{ t('profile.sign_out') }}</div>
+                        <div class="settings-row-desc">{{ t('profile.sign_out_desc') }}</div>
+                    </div>
+                    <a href="/logout" class="v05-btn v05-btn-danger v05-btn-sm">{{ t('profile.sign_out') }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// i18n strings for JavaScript
+const _p_i18n = {
+    loading:              '{{ t("profile.loading") }}',
+    no_model:             '{{ t("profile.no_model") }}',
+    select_provider:      '{{ t("profile.select_provider_first") }}',
+    pref_saved:           '{{ t("profile.pref_saved") }}',
+    pref_save_error:      '{{ t("profile.pref_save_error") }}',
+    error_loading_prefs:  '{{ t("profile.error_loading_prefs") }}',
+    no_favourites:        '{{ t("profile.no_favourites") }}',
+    nostr_col_npub:       '{{ t("profile.nostr_col_npub") }}',
+    nostr_col_name:       '{{ t("profile.nostr_col_name") }}',
+    nostr_col_status:     '{{ t("profile.nostr_col_status") }}',
+    nostr_col_actions:    '{{ t("profile.nostr_col_actions") }}',
+    nostr_blocked:        '{{ t("profile.nostr_status_blocked") }}',
+    nostr_trusted:        '{{ t("profile.nostr_status_trusted") }}',
+    nostr_untrusted:      '{{ t("profile.nostr_status_untrusted") }}',
+    nostr_block_btn:      '{{ t("profile.nostr_btn_block") }}',
+    nostr_remove_btn:     '{{ t("profile.nostr_btn_remove") }}',
+    nostr_no_contacts:    '{{ t("profile.nostr_no_contacts") }}',
+    nostr_npub_required:  '{{ t("profile.nostr_npub_required") }}',
+    nostr_added:          '{{ t("profile.nostr_contact_added") }}',
+    nostr_removed:        '{{ t("profile.nostr_contact_removed") }}',
+    nostr_blocked_msg:    '{{ t("profile.nostr_contact_blocked") }}',
+    failed_load_contacts: '{{ t("profile.failed_load_contacts") }}',
+};
+
+// route -> [{id, display}]
+const _routeModels = { webui: [], nip17: [], api: [] };
+
+async function loadAiPreferences() {
+    const status = document.getElementById('pref-status-webui');
+    try {
+        // Load providers
+        const provResp = await fetch('/api/v1/providers', { credentials: 'include',
+            headers: { 'Authorization': 'Bearer ' + (getCookieToken() || '') } });
+        if (provResp.ok) {
+            const provData = await provResp.json();
+            for (const route of ['webui', 'nip17', 'api']) {
+                const sel = document.getElementById(`pref-provider-${route}`);
+                provData.providers.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.name;
+                    opt.textContent = p.display_name;
+                    sel.appendChild(opt);
+                });
+            }
+        }
+
+        // Load current preferences
+        const prefResp = await fetch('/api/v1/user/preferences', { credentials: 'include' });
+        if (prefResp.ok) {
+            const prefData = await prefResp.json();
+            for (const route of ['webui', 'nip17', 'api']) {
+                const pref = prefData.preferences && prefData.preferences[route];
+                if (pref) {
+                    const provSel = document.getElementById(`pref-provider-${route}`);
+                    if (pref.provider_name) provSel.value = pref.provider_name;
+                    await loadModelsForRoute(route, pref.model_id);
+                }
+            }
+            renderFavourites(prefData.favourites || []);
+        }
+    } catch (e) {
+        status.textContent = `${_p_i18n.error_loading_prefs} ${e.message}`;
+        status.style.color = 'var(--err)';
+    }
+}
+
+async function loadModelsForRoute(route, preselectModelId) {
+    const provSel = document.getElementById(`pref-provider-${route}`);
+    const modelSel = document.getElementById(`pref-model-${route}`);
+    const providerName = provSel.value;
+
+    modelSel.innerHTML = `<option value="">—</option>`;
+    if (!providerName) { _routeModels[route] = []; return; }
+
+    try {
+        const token = getCookieToken() || '';
+        const resp = await fetch(`/api/v1/providers/${encodeURIComponent(providerName)}/models`,
+            { credentials: 'include', headers: { 'Authorization': 'Bearer ' + token } });
+        if (!resp.ok) { modelSel.innerHTML = `<option value="">Error</option>`; return; }
+        const data = await resp.json();
+        _routeModels[route] = data.models || [];
+        modelSel.innerHTML = `<option value="">${_p_i18n.no_model}</option>`;
+        (_routeModels[route]).forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.id.split('/').pop().slice(0, 30);
+            if (preselectModelId && m.id === preselectModelId) opt.selected = true;
+            modelSel.appendChild(opt);
+        });
+    } catch (e) {
+        modelSel.innerHTML = `<option value="">Error</option>`;
+    }
+}
+
+async function savePref(route) {
+    const provSel = document.getElementById(`pref-provider-${route}`);
+    const modelSel = document.getElementById(`pref-model-${route}`);
+    const status = document.getElementById(`pref-status-${route}`);
+
+    const payload = {
+        preferences: {
+            [route]: {
+                provider_name: provSel.value || null,
+                model_id: modelSel.value || null
+            }
+        }
+    };
+
+    try {
+        const resp = await fetch('/api/v1/user/preferences', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (resp.ok) {
+            status.textContent = `${route} ${_p_i18n.pref_saved}`;
+            status.style.color = 'var(--live)';
+        } else {
+            const err = await resp.json();
+            status.textContent = `Error: ${err.detail || _p_i18n.pref_save_error}`;
+            status.style.color = 'var(--err)';
+        }
+    } catch (e) {
+        status.textContent = `Error: ${e.message}`;
+        status.style.color = 'var(--err)';
+    }
+    setTimeout(() => { status.textContent = '{{ t("profile.ai_prefs_hint") }}'; status.style.color = 'var(--t-2)'; }, 4000);
+}
+
+function renderFavourites(favs) {
+    const container = document.getElementById('favourites-list');
+    if (!favs.length) {
+        container.textContent = _p_i18n.no_favourites;
+        return;
+    }
+    container.innerHTML = favs.map(f =>
+        `<span style="display:inline-flex;align-items:center;gap:4px;margin:3px;padding:3px 8px;
+                      border:1px solid var(--b-med);border-radius:12px;font-size:11px;">
+            ${escapeHtmlProfile(f.provider_name + ' / ' + f.model_id)}
+            <button onclick="removeFavourite('${escapeHtmlProfile(f.provider_name)}','${escapeHtmlProfile(f.model_id)}')"
+                    style="background:none;border:none;color:var(--err);cursor:pointer;padding:0;font-size:10px;line-height:1;">✕</button>
+        </span>`
+    ).join('');
+}
+
+async function removeFavourite(provider, modelId) {
+    try {
+        await fetch(`/api/v1/user/favourites/${encodeURIComponent(provider)}/${encodeURIComponent(modelId)}`,
+            { method: 'DELETE', credentials: 'include' });
+        const prefResp = await fetch('/api/v1/user/preferences', { credentials: 'include' });
+        if (prefResp.ok) {
+            const data = await prefResp.json();
+            renderFavourites(data.favourites || []);
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function getCookieToken() {
+    const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
+function escapeHtmlProfile(s) {
+    return String(s).replace(/[&<>"']/g, m =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#x27;'}[m]));
+}
+
+// ---------------------------------------------------------------------------
+// Trusted Nostr Contacts
+// ---------------------------------------------------------------------------
+
+async function loadNostrContacts() {
+    const container = document.getElementById('nostr-contacts-list');
+    try {
+        const resp = await fetch('/api/v1/nostr/contacts', {
+            credentials: 'include',
+            headers: { 'Authorization': 'Bearer ' + (getCookieToken() || '') },
+        });
+        if (!resp.ok) { container.textContent = _p_i18n.failed_load_contacts; return; }
+        const data = await resp.json();
+        renderNostrContacts(data.contacts || []);
+        // Show first contact's npub in the settings row
+        if (data.contacts && data.contacts.length > 0) {
+            const trusted = data.contacts.find(c => c.is_trusted && !c.is_blocked);
+            if (trusted) document.getElementById('nostr-pubkey-display').textContent = trusted.npub;
+        }
+    } catch (e) {
+        container.textContent = `Error: ${e.message}`;
+    }
+}
+
+function renderNostrContacts(contacts) {
+    const container = document.getElementById('nostr-contacts-list');
+    if (!contacts.length) {
+        container.textContent = _p_i18n.nostr_no_contacts;
+        return;
+    }
+    container.innerHTML = `
+        <table class="table" style="font-size:11px;">
+            <thead><tr>
+                <th>${_p_i18n.nostr_col_npub}</th>
+                <th>${_p_i18n.nostr_col_name}</th>
+                <th>${_p_i18n.nostr_col_status}</th>
+                <th>${_p_i18n.nostr_col_actions}</th>
+            </tr></thead>
+            <tbody>
+                ${contacts.map(c => `
+                <tr>
+                    <td style="font-family:monospace; word-break:break-all;">${escapeHtmlProfile(c.npub)}</td>
+                    <td>${escapeHtmlProfile(c.name || '')}</td>
+                    <td>${c.is_blocked
+                        ? `<span class="tag tag-err">${_p_i18n.nostr_blocked}</span>`
+                        : c.is_trusted
+                            ? `<span class="tag tag-live">${_p_i18n.nostr_trusted}</span>`
+                            : `<span class="tag tag-mono">${_p_i18n.nostr_untrusted}</span>`
+                    }</td>
+                    <td style="white-space:nowrap;">
+                        ${!c.is_blocked ? `<button onclick="blockNostrContact('${escapeHtmlProfile(c.npub)}')" class="v05-btn v05-btn-outline v05-btn-sm" style="font-size:10px;">${_p_i18n.nostr_block_btn}</button> ` : ''}
+                        <button onclick="removeNostrContact('${escapeHtmlProfile(c.npub)}')" class="v05-btn v05-btn-danger v05-btn-sm" style="font-size:10px;">${_p_i18n.nostr_remove_btn}</button>
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>`;
+}
+
+function setNostrStatus(msg, isError) {
+    const el = document.getElementById('nostr-contacts-status');
+    el.textContent = msg;
+    el.style.color = isError ? 'var(--err)' : 'var(--live)';
+    setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+async function addNostrContact() {
+    const npub = document.getElementById('nostr-add-npub').value.trim();
+    const name = document.getElementById('nostr-add-name').value.trim();
+    if (!npub) { setNostrStatus(_p_i18n.nostr_npub_required, true); return; }
+    try {
+        const resp = await fetch('/api/v1/nostr/contacts', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + (getCookieToken() || ''),
+            },
+            body: JSON.stringify({ npub, name: name || null }),
+        });
+        if (!resp.ok) {
+            const err = await resp.json();
+            setNostrStatus(`Error: ${err.detail || _p_i18n.pref_save_error}`, true);
+            return;
+        }
+        document.getElementById('nostr-add-npub').value = '';
+        document.getElementById('nostr-add-name').value = '';
+        setNostrStatus(_p_i18n.nostr_added, false);
+        await loadNostrContacts();
+    } catch (e) { setNostrStatus(`Error: ${e.message}`, true); }
+}
+
+async function removeNostrContact(npub) {
+    try {
+        await fetch(`/api/v1/nostr/contacts/${encodeURIComponent(npub)}`, {
+            method: 'DELETE',
+            credentials: 'include',
+            headers: { 'Authorization': 'Bearer ' + (getCookieToken() || '') },
+        });
+        setNostrStatus(_p_i18n.nostr_removed, false);
+        await loadNostrContacts();
+    } catch (e) { setNostrStatus(`Error: ${e.message}`, true); }
+}
+
+async function blockNostrContact(npub) {
+    try {
+        const resp = await fetch(`/api/v1/nostr/contacts/${encodeURIComponent(npub)}/block`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Authorization': 'Bearer ' + (getCookieToken() || '') },
+        });
+        if (resp.ok) { setNostrStatus(_p_i18n.nostr_blocked_msg, false); await loadNostrContacts(); }
+    } catch (e) { setNostrStatus(`Error: ${e.message}`, true); }
+}
+
+function setThemeChip(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('4s1t-theme', theme);
+    if (typeof _updateThemeBtn === 'function') _updateThemeBtn(theme);
+    document.querySelectorAll('.theme-chip').forEach(b => b.classList.remove('selected'));
+    const chip = document.getElementById('chip-' + theme);
+    if (chip) chip.classList.add('selected');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadAiPreferences();
+    loadNostrContacts();
+    // Sync theme chips with current theme
+    const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+    const chip = document.getElementById('chip-' + cur);
+    if (chip) chip.classList.add('selected');
+});
+</script>
+{% endblock %}

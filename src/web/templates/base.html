@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="{{ lang | default('en') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>{% block title %}4S1T Agent AI{% endblock %}</title>
+
+    <!-- theme.js must load synchronously — prevents flash of wrong theme -->
+    <script src="{{ url_for('static', path='/js/theme.js') }}"></script>
+
+    <!-- Design system -->
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/v05.css') }}">
+    <!-- Legacy component CSS kept for page content areas (Phases 3–6 will remove these) -->
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/model-selector.css') }}">
+
+    <style>
+        /* ── Compat aliases so existing page templates keep working ── */
+        :root {
+            --accent-color:   var(--live);
+            --bg-color:       var(--bg);
+            --bg-secondary:   var(--s1);
+            --border-color:   var(--b-med);
+            --text-color:     var(--t);
+            --text-muted:     var(--t-2);
+            --error-color:    var(--err);
+            --success-color:  var(--live);
+            --warning-color:  var(--warn);
+            --font-family:    -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+            --font-size-base: 13.5px;
+            --font-size-small: 12.5px;
+            --font-size-large: 15px;
+            --font-size-h1:   22px;
+            --font-size-h2:   18px;
+            --font-size-h3:   15px;
+            --radius-sm:      var(--r-xs);
+            --radius-md:      var(--r-sm);
+            --transition:     all 120ms ease;
+            --sidebar-width:  var(--sidebar-w);
+        }
+
+        /* ── Shell layout ── */
+        html, body { height: 100%; overflow: hidden; }
+
+        .v05-page-wrap {
+            flex: 1; overflow-y: auto; position: relative; z-index: 1;
+        }
+        .v05-page-wrap.padded { padding: 28px 24px; }
+
+        /* ── KB sub-nav collapse ── */
+        .v05-sub-nav { overflow: hidden; transition: max-height var(--t-med); max-height: 400px; }
+        .v05-sub-nav.hidden { max-height: 0; }
+        /* When sidebar is collapsed, KB sub-nav always visible (icons only) */
+        .v05-sidebar.collapsed .v05-sub-nav.hidden { max-height: 400px; }
+
+        /* ── Page content compat ── */
+        .card {
+            background: var(--s1); border: 1px solid var(--b-med);
+            border-radius: var(--r-sm); padding: 1.5rem; margin-bottom: 1rem;
+        }
+        .card h3 { color: var(--t); font-size: var(--font-size-large); margin: 0 0 1rem; font-weight: 600; }
+        h1, h2, h3, h4, h5, h6 { color: var(--t); font-weight: 600; margin: 0 0 1rem; font-family: inherit; }
+        h1 { font-size: var(--font-size-h1); }
+        h2 { font-size: var(--font-size-h2); }
+        h3 { font-size: var(--font-size-h3); }
+        a { color: var(--t); text-decoration: none; }
+        a:hover { opacity: .75; }
+        label { display: block; margin-bottom: .5rem; color: var(--t-2); font-size: 12px; }
+        input[type="text"], input[type="password"], input[type="email"],
+        input[type="number"], select, textarea {
+            width: 100%; padding: .6rem; background: var(--s2);
+            border: 1px solid var(--b); color: var(--t);
+            font-family: inherit; font-size: 13px;
+            border-radius: var(--r-xs); transition: border-color var(--t-fast);
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b-hi); }
+        input::placeholder, textarea::placeholder { color: var(--t-3); }
+        button, .btn {
+            background: transparent; border: 1px solid var(--b-med);
+            color: var(--t-2); padding: .5rem 1rem; cursor: pointer;
+            font-family: inherit; font-size: 13px;
+            transition: all var(--t-fast); border-radius: var(--r-xs);
+            text-decoration: none; display: inline-block;
+        }
+        button:hover, .btn:hover { background: var(--s2); border-color: var(--b-hi); color: var(--t); }
+        .btn-danger { border-color: var(--err-dim); color: var(--err); }
+        .btn-danger:hover { background: var(--err-dim); }
+        .btn-primary { background: var(--t); border-color: var(--t); color: var(--t-inv); }
+        .btn-primary:hover { opacity: .88; }
+        .form-group { margin-bottom: 1rem; }
+        .error {
+            color: var(--err); background: var(--err-dim);
+            border-left: 2px solid var(--err); padding: .8rem; margin: .5rem 0; font-size: 13px;
+        }
+        .success {
+            color: var(--live); background: var(--live-dim);
+            border-left: 2px solid var(--live); padding: .8rem; margin: .5rem 0;
+        }
+        .warning {
+            color: var(--warn); background: var(--warn-dim);
+            border-left: 2px solid var(--warn); padding: .8rem; margin: .5rem 0;
+        }
+        code { background: var(--s2); border: 1px solid var(--b); padding: .1rem .3rem; font-size: 12px; border-radius: 3px; }
+        pre { background: var(--s2); border: 1px solid var(--b); padding: 1rem; overflow-x: auto; font-size: 12px; border-radius: var(--r-xs); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 9px 14px; font-size: 10.5px; font-weight: 700;
+             letter-spacing: .06em; text-transform: uppercase; color: var(--t-3); border-bottom: 1px solid var(--b); }
+        td { padding: 11px 14px; border-bottom: 1px solid var(--b); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: var(--s2); }
+        .status-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .6rem; flex-shrink: 0; }
+        .status-healthy   { background: var(--live); box-shadow: 0 0 4px var(--live); }
+        .status-unhealthy { background: var(--err);  box-shadow: 0 0 4px var(--err); }
+        .status-degraded  { background: var(--warn); box-shadow: 0 0 4px var(--warn); }
+
+        /* Session warning (overrides base positioning) */
+        #session-warn {
+            position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+            background: var(--warn); color: #000; padding: .6rem 1.2rem;
+            border-radius: var(--r-sm); font-size: 13px; cursor: pointer;
+            z-index: 9999; box-shadow: var(--sh-md);
+        }
+
+        @media (max-width: 640px) {
+            .v05-page-wrap.padded { padding: 18px 14px; }
+        }
+    </style>
+
+    <!-- Global API helper -->
+    <script>
+    window.API = {
+        getToken: function() { return localStorage.getItem('access_token'); },
+        setToken: function(t) { localStorage.setItem('access_token', t); },
+        removeToken: function() { localStorage.removeItem('access_token'); },
+        fetch: async function(url, options) {
+            options = options || {};
+            var token = this.getToken();
+            var headers = Object.assign({'Content-Type': 'application/json'}, options.headers || {});
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            var response = await fetch(url, Object.assign({}, options, {headers: headers}));
+            if (response.status === 401) { this.removeToken(); window.location.href = '/login'; }
+            return response;
+        }
+    };
+    </script>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Animated background canvas ── -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- ── App shell ── -->
+<div class="v05-shell">
+
+    <!-- ════════════════ SIDEBAR ════════════════ -->
+    <aside class="v05-sidebar{% if sidebar_collapsed %} collapsed{% endif %}" id="v05-sidebar">
+
+        <!-- Header -->
+        <div class="v05-sidebar-header">
+            <div class="v05-sidebar-logo" title="4s1t Agent AI">4s1t</div>
+            <div class="v05-sidebar-title">
+                <h2>4s1t</h2>
+                <span>{{ t('nav.app_version') }}</span>
+            </div>
+        </div>
+
+        <!-- Collapse toggle -->
+        <button class="v05-sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
+            <span data-icon="chevronleft" data-icon-size="14"></span>
+        </button>
+
+        <!-- Navigation -->
+        <nav class="v05-sidebar-nav">
+            {% set path = request.url.path %}
+
+            <a href="/dashboard" class="v05-nav-item{% if path == '/dashboard' %} active{% endif %}">
+                <span class="v05-nav-icon" data-icon="dashboard" data-icon-size="18"></span>
+                <span class="v05-nav-label">{{ t('nav.dashboard') }}</span>
+            </a>
+
+            <a href="/chat" class="v05-nav-item{% if path == '/chat' %} active{% endif %}">
+                <span class="v05-nav-icon" data-icon="chat" data-icon-size="18"></span>
+                <span class="v05-nav-label">{{ t('nav.chat') }}</span>
+            </a>
+
+            <a href="/conversations" class="v05-nav-item{% if path == '/conversations' %} active{% endif %}">
+                <span class="v05-nav-icon" data-icon="gitbranch" data-icon-size="18"></span>
+                <span class="v05-nav-label">{{ t('nav.conversations') }}</span>
+            </a>
+
+            <!-- Knowledge Base (with sub-nav) -->
+            <div class="v05-nav-section-label">{{ t('nav.knowledge_base') }}</div>
+
+            <div class="v05-nav-item{% if path.startswith('/kb') %} active{% endif %}"
+                 id="kb-nav-toggle" onclick="toggleKBNav()" style="cursor:pointer;">
+                <span class="v05-nav-icon" data-icon="database" data-icon-size="18"></span>
+                <span class="v05-nav-label">{{ t('nav.knowledge_base') }}</span>
+                <span id="kb-chevron" class="v05-nav-icon" data-icon="chevrondown" data-icon-size="14"
+                      style="margin-left:auto; transition: transform var(--t-med);{% if not path.startswith('/kb') %} transform:rotate(-90deg);{% endif %}"></span>
+            </div>
+
+            <div class="v05-sub-nav{% if not path.startswith('/kb') %} hidden{% endif %}" id="kb-sub-nav">
+                <div class="v05-sub-nav-items">
+                    {% set kb_pages = [
+                        ('/kb',            t('nav.kb_overview'),   'layers'),
+                        ('/kb/accounts',   t('nav.kb_accounts'),   'users'),
+                        ('/kb/discovery',  t('nav.kb_discovery'),  'compass'),
+                        ('/kb/graph',      t('nav.kb_graph'),      'network'),
+                        ('/kb/alerts',     t('nav.kb_alerts'),     'bell'),
+                        ('/kb/briefs',     t('nav.kb_briefs'),     'filetext'),
+                        ('/kb/schedule',   t('nav.kb_schedule'),   'calendar'),
+                        ('/kb/documents',  t('nav.kb_documents'),  'doc'),
+                        ('/kb/teams',      t('nav.kb_teams'),      'gitbranch'),
+                        ('/kb/wiki',       t('nav.kb_wiki'),        'bookopen'),
+                    ] %}
+                    {% for kpath, klabel, kicon in kb_pages %}
+                    <a href="{{ kpath }}" class="v05-sub-nav-item{% if path == kpath %} active{% endif %}">
+                        <span class="v05-sub-nav-icon" data-icon="{{ kicon }}" data-icon-size="15"></span>
+                        <span class="v05-sub-nav-dot"></span>
+                        <span class="v05-sub-nav-text">{{ klabel }}</span>
+                    </a>
+                    {% endfor %}
+                    <!-- KB-17: Action Inbox with pending-count badge -->
+                    <a href="/kb/inbox" class="v05-sub-nav-item{% if path == '/kb/inbox' %} active{% endif %}" style="position:relative;">
+                        <span class="v05-sub-nav-icon" data-icon="inbox" data-icon-size="15"></span>
+                        <span class="v05-sub-nav-dot"></span>
+                        <span class="v05-sub-nav-text">{{ t('nav.kb_inbox') }}</span>
+                        <span id="inbox-badge" style="display:none; position:absolute; right:8px; top:50%; transform:translateY(-50%);
+                              background:var(--err); color:#fff; border-radius:999px; font-size:10px; font-weight:700;
+                              min-width:16px; height:16px; padding:0 4px; align-items:center; justify-content:center; line-height:1;"></span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="v05-nav-section-label">{{ t('nav.tools') }}</div>
+
+            <a href="/api-keys" class="v05-nav-item{% if path == '/api-keys' %} active{% endif %}">
+                <span class="v05-nav-icon" data-icon="key" data-icon-size="18"></span>
+                <span class="v05-nav-label">{{ t('nav.api_keys') }}</span>
+            </a>
+
+            {% if user is defined and user and user.is_admin %}
+            <div class="v05-nav-section-label">{{ t('nav.admin') }}</div>
+            <a href="/users" class="v05-nav-item{% if path == '/users' %} active{% endif %}">
+                <span class="v05-nav-icon" data-icon="users" data-icon-size="18"></span>
+                <span class="v05-nav-label">{{ t('nav.users') }}</span>
+            </a>
+            {% endif %}
+        </nav>
+
+        <!-- Footer -->
+        <div class="v05-sidebar-footer">
+            <!-- Theme toggle -->
+            <button id="v05-theme-btn" onclick="toggleTheme()" title="Switch theme"
+                    data-label-dark="{{ t('nav.theme_dark') }}" data-label-light="{{ t('nav.theme_light') }}">
+                <span class="v05-nav-icon" data-icon="sun" data-icon-size="16"></span>
+                <span class="v05-theme-btn-label">{{ t('nav.theme_dark') }}</span>
+            </button>
+
+            {% if user is defined and user %}
+            <div class="v05-divider"></div>
+            <a href="/profile" class="v05-sidebar-user" title="Profile">
+                <div class="v05-user-avatar">
+                    {{ user.username[0].upper() if user.username else 'U' }}
+                </div>
+                <div class="v05-user-info">
+                    <p class="v05-user-name">{{ user.username }}</p>
+                    <p class="v05-user-role">{{ user.role if user.role else 'standard' }}</p>
+                </div>
+            </a>
+            <button onclick="logout()" class="v05-nav-item" style="width:100%;background:none;border:none;text-align:left;cursor:pointer;color:var(--err);">
+                <span class="v05-nav-icon" data-icon="logout" data-icon-size="16"></span>
+                <span class="v05-nav-label">{{ t('nav.logout') }}</span>
+            </button>
+            {% endif %}
+        </div>
+    </aside>
+
+    <!-- ── Mobile overlay (inside shell so z-index is in the same stacking context as sidebar) ── -->
+    <div id="v05-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);" onclick="closeMobileSidebar()"></div>
+
+    <!-- ════════════════ MAIN ════════════════ -->
+    <div class="v05-main">
+
+        <!-- Topbar -->
+        <div class="v05-topbar">
+            <button id="mobile-menu-btn" class="v05-icon-btn"
+                    onclick="openMobileSidebar()"
+                    style="display:none;" title="Menu">
+                <span data-icon="menu" data-icon-size="18"></span>
+            </button>
+            <span class="v05-topbar-title">{% block page_title %}4S1T Agent{% endblock %}</span>
+            {% block topbar_actions %}{% endblock %}
+        </div>
+
+        <!-- Page content -->
+        <div class="v05-page-wrap {% block page_class %}padded{% endblock %}" id="page-content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</div>
+
+<!-- ── Mobile bottom tab bar ── -->
+{% if user is defined and user %}
+<nav class="v05-tabbar">
+    {% set path = request.url.path %}
+    <a href="/chat" class="v05-tab-item{% if path == '/chat' %} active{% endif %}">
+        <span class="v05-tab-icon" data-icon="chat" data-icon-size="20"></span>
+        <span>{{ t('nav.chat') }}</span>
+    </a>
+    <a href="/dashboard" class="v05-tab-item{% if path == '/dashboard' %} active{% endif %}">
+        <span class="v05-tab-icon" data-icon="dashboard" data-icon-size="20"></span>
+        <span>{{ t('nav.dashboard') }}</span>
+    </a>
+    <a href="/kb" class="v05-tab-item{% if path.startswith('/kb') %} active{% endif %}">
+        <span class="v05-tab-icon" data-icon="database" data-icon-size="20"></span>
+        <span>{{ t('nav.knowledge_base') }}</span>
+    </a>
+    <a href="/profile" class="v05-tab-item{% if path == '/profile' %} active{% endif %}">
+        <span class="v05-tab-icon" data-icon="settings" data-icon-size="20"></span>
+        <span>{{ t('nav.profile') }}</span>
+    </a>
+</nav>
+{% endif %}
+
+<!-- ── Scripts ── -->
+<script src="{{ url_for('static', path='/js/icons.js') }}"></script>
+<script src="{{ url_for('static', path='/js/model-selector.js') }}"></script>
+
+<script>
+/* ── Sidebar collapse ── */
+(function() {
+    var collapsed = localStorage.getItem('4s1t-sidebar') === 'collapsed';
+    if (collapsed) {
+        var sb = document.getElementById('v05-sidebar');
+        if (sb) sb.classList.add('collapsed');
+    }
+})();
+
+function toggleSidebar() {
+    var sb = document.getElementById('v05-sidebar');
+    sb.classList.toggle('collapsed');
+    localStorage.setItem('4s1t-sidebar', sb.classList.contains('collapsed') ? 'collapsed' : 'expanded');
+}
+
+/* ── KB sub-nav ── */
+function toggleKBNav() {
+    var sb = document.getElementById('v05-sidebar');
+    if (sb && sb.classList.contains('collapsed')) {
+        // Don't toggle when sidebar collapsed — icons always visible
+        return;
+    }
+    var sub = document.getElementById('kb-sub-nav');
+    var chev = document.getElementById('kb-chevron');
+    var isHidden = sub.classList.contains('hidden');
+    sub.classList.toggle('hidden', !isHidden);
+    if (chev) chev.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+}
+
+/* ── Mobile sidebar ── */
+function openMobileSidebar() {
+    document.getElementById('v05-sidebar').classList.add('mobile-open');
+    document.getElementById('v05-overlay').style.display = 'block';
+}
+function closeMobileSidebar() {
+    document.getElementById('v05-sidebar').classList.remove('mobile-open');
+    document.getElementById('v05-overlay').style.display = 'none';
+}
+
+/* ── Mobile: show menu button at ≤640px ── */
+(function() {
+    function checkMobile() {
+        var btn = document.getElementById('mobile-menu-btn');
+        if (btn) btn.style.display = window.innerWidth <= 640 ? 'flex' : 'none';
+    }
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+})();
+
+/* ── Logout ── */
+function logout() {
+    if (confirm('{{ t("nav.logout_confirm") }}')) {
+        window.API.removeToken();
+        window.location.href = '/logout';
+    }
+}
+
+/* ── Background canvas ── */
+(function() {
+    var canvas = document.getElementById('bg-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W, H, particles;
+    var N = 60;
+
+    function resize() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+    }
+    function init() {
+        resize();
+        particles = [];
+        for (var i = 0; i < N; i++) {
+            particles.push({
+                x: Math.random() * W, y: Math.random() * H,
+                vx: (Math.random() - 0.5) * 0.28,
+                vy: (Math.random() - 0.5) * 0.28,
+                r: Math.random() * 1.4 + 0.4
+            });
+        }
+    }
+    function draw() {
+        ctx.clearRect(0, 0, W, H);
+        var light = document.documentElement.getAttribute('data-theme') === 'light';
+        var rgb = light ? '50,45,70' : '155,160,200';
+        for (var i = 0; i < N; i++) {
+            var p = particles[i];
+            p.x += p.vx; p.y += p.vy;
+            if (p.x < 0) p.x = W; else if (p.x > W) p.x = 0;
+            if (p.y < 0) p.y = H; else if (p.y > H) p.y = 0;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(' + rgb + ',0.55)';
+            ctx.fill();
+            for (var j = i + 1; j < N; j++) {
+                var q = particles[j];
+                var dx = p.x - q.x, dy = p.y - q.y;
+                var d = Math.sqrt(dx * dx + dy * dy);
+                if (d < 110) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(q.x, q.y);
+                    ctx.strokeStyle = 'rgba(' + rgb + ',' + ((1 - d / 110) * 0.10) + ')';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+            }
+        }
+        requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', function() { resize(); });
+    init();
+    draw();
+})();
+</script>
+
+{% block extra_scripts %}{% endblock %}
+
+<!-- ── KB-17: inbox badge loader ── -->
+<script>
+(function() {
+    var badge = document.getElementById('inbox-badge');
+    if (!badge) return;
+    function loadBadge() {
+        fetch('/api/v1/kb/inbox/count', { credentials: 'include' })
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(d) {
+                if (!d) return;
+                var n = d.pending || 0;
+                badge.textContent = n > 0 ? String(n) : '';
+                badge.style.display = n > 0 ? 'inline-flex' : 'none';
+            })
+            .catch(function() {});
+    }
+    loadBadge();
+    setInterval(loadBadge, 5 * 60 * 1000); // refresh every 5 minutes
+})();
+</script>
+
+<!-- ── Session activity monitor ── -->
+<script>
+(function() {
+    var INACTIVITY_MS    = 30 * 60 * 1000;
+    var WARN_BEFORE_MS   = 5  * 60 * 1000;
+    var REFRESH_EVERY_MS = 5  * 60 * 1000;
+    var lastActivity = Date.now();
+    var warnShown = false, warnEl = null;
+
+    function onActivity() {
+        lastActivity = Date.now();
+        if (warnShown) hideWarning();
+    }
+    ['click','keydown','mousemove','touchstart','scroll'].forEach(function(ev) {
+        document.addEventListener(ev, onActivity, {passive: true});
+    });
+
+    var _session_warn_tpl = '{{ t("nav.session_warn") }}';
+    function showWarning(min) {
+        if (warnShown) return;
+        warnShown = true;
+        warnEl = document.createElement('div');
+        warnEl.id = 'session-warn';
+        warnEl.textContent = _session_warn_tpl.replace('{min}', min);
+        warnEl.addEventListener('click', function() { onActivity(); silentRefresh(); });
+        document.body.appendChild(warnEl);
+    }
+    function hideWarning() {
+        warnShown = false;
+        if (warnEl && warnEl.parentNode) warnEl.parentNode.removeChild(warnEl);
+        warnEl = null;
+    }
+    function silentRefresh() {
+        fetch('/auth/refresh', {method:'POST', credentials:'same-origin'})
+            .then(function(r) { if (r.status === 401) window.location.href = '/login?reason=expired'; })
+            .catch(function() {});
+    }
+    setInterval(function() {
+        var idleMs = Date.now() - lastActivity;
+        if (idleMs >= INACTIVITY_MS) { window.location.href = '/login?reason=expired'; return; }
+        var leftMs = INACTIVITY_MS - idleMs;
+        if (leftMs <= WARN_BEFORE_MS) showWarning(Math.ceil(leftMs / 60000));
+        if (idleMs < INACTIVITY_MS) silentRefresh();
+    }, REFRESH_EVERY_MS);
+})();
+</script>
+
+</body>
+</html>

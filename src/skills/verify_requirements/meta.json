@@ -1,0 +1,77 @@
+{
+  "name": "verify_requirements",
+  "version": "1.0.0",
+  "description": "Runs SMART and/or INVEST algorithmic checks against a list of requirements. No LLM involved — pure structural and pattern-based checks. SMART applies to all requirement types (Specific, Measurable, Achievable, Relevant, Time-bound). INVEST applies only to user stories (req_type='functional' with title starting 'As a'/'As an'). Returns a per-requirement pass/fail breakdown and a markdown verification report.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 10,
+  "max_memory_mb": 128,
+  "network_allowed": false,
+  "filesystem_access": "none",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "requirements": {
+        "type": "array",
+        "description": "List of requirements to verify. Each item: {id, title, description, req_type, acceptance_criteria?}",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string"},
+            "title": {"type": "string"},
+            "description": {"type": "string"},
+            "req_type": {
+              "type": "string",
+              "description": "e.g. 'functional', 'non_functional', 'constraint', 'business_rule'"
+            },
+            "acceptance_criteria": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Optional list of acceptance criteria strings"
+            }
+          },
+          "required": ["id", "title", "description", "req_type"]
+        }
+      },
+      "criteria": {
+        "type": "string",
+        "enum": ["smart", "invest", "both"],
+        "description": "Which framework to apply. 'invest' only applies to user stories. Default: 'smart'."
+      }
+    },
+    "required": ["requirements"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "results": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string"},
+            "title": {"type": "string"},
+            "passed": {"type": "boolean"},
+            "violations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "criterion": {"type": "string"},
+                  "reason": {"type": "string"}
+                }
+              }
+            },
+            "score": {"type": "string"}
+          }
+        }
+      },
+      "pass_count": {"type": "integer"},
+      "fail_count": {"type": "integer"},
+      "criteria_applied": {"type": "string"},
+      "verification_report_markdown": {"type": "string"}
+    }
+  }
+}

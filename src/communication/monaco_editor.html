@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4S1T Agent AI - Monaco Code Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            overflow: hidden;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        /* Header/Toolbar */
+        .header {
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo {
+            font-weight: bold;
+            font-size: 14px;
+            color: #569cd6;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-path {
+            font-size: 13px;
+            color: #cccccc;
+            background: #3c3c3c;
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid #5a5a5a;
+            min-width: 300px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-path input {
+            background: transparent;
+            border: none;
+            color: #cccccc;
+            font-size: 13px;
+            outline: none;
+            flex: 1;
+        }
+
+        .btn {
+            background: #0e639c;
+            border: none;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: #1177bb;
+        }
+
+        .btn-secondary {
+            background: #3c3c3c;
+            border: 1px solid #5a5a5a;
+        }
+
+        .btn-secondary:hover {
+            background: #4c4c4c;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #34ce57;
+        }
+
+        /* Main Layout */
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 12px;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #bbbbbb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .file-tree {
+            list-style: none;
+        }
+
+        .file-tree-item {
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #cccccc;
+        }
+
+        .file-tree-item:hover {
+            background: #2a2d2e;
+        }
+
+        .file-tree-item.active {
+            background: #37373d;
+        }
+
+        .file-tree-item .icon {
+            width: 16px;
+            text-align: center;
+        }
+
+        .folder-icon {
+            color: #dcb67a;
+        }
+
+        .file-icon {
+            color: #75beff;
+        }
+
+        .python-icon {
+            color: #ffd700;
+        }
+
+        /* Editor Container */
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #editor {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: #007acc;
+            color: white;
+            padding: 4px 12px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .status-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .status-left {
+            display: flex;
+            gap: 16px;
+        }
+
+        .status-right {
+            display: flex;
+            gap: 16px;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 8px;
+            padding: 20px;
+            min-width: 400px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            z-index: 1000;
+            display: none;
+        }
+
+        .settings-panel.active {
+            display: block;
+        }
+
+        .settings-header {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            font-size: 13px;
+        }
+
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        select, input[type="checkbox"] {
+            background: #3c3c3c;
+            border: 1px solid #5a5a5a;
+            color: #cccccc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #3c3c3c;
+            border-top-color: #007acc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 16px;
+            color: #cccccc;
+            font-size: 14px;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 40px;
+            right: 20px;
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-left: 4px solid #007acc;
+            padding: 12px 16px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+            min-width: 300px;
+        }
+
+        .toast.success {
+            border-left-color: #28a745;
+        }
+
+        .toast.error {
+            border-left-color: #dc3545;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-close {
+            margin-left: auto;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+        }
+
+        /* Overlay for settings */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* Toolbar separator */
+        .toolbar-separator {
+            width: 1px;
+            height: 20px;
+            background: #5a5a5a;
+            margin: 0 8px;
+        }
+
+        /* Quick actions dropdown */
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-content {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            min-width: 200px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            display: none;
+            z-index: 100;
+        }
+
+        .dropdown.active .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dropdown-item:hover {
+            background: #2a2d2e;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background: #3e3e42;
+            margin: 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading Monaco Editor...</div>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <span>⚡</span>
+                    <span>4S1T Agent AI</span>
+                </div>
+                <div class="toolbar-separator"></div>
+                <div class="file-path">
+                    <span>📄</span>
+                    <input type="text" id="filePath" placeholder="Enter file path..." value="">
+                </div>
+                <button class="btn btn-secondary" onclick="loadFile()">
+                    <span>📂</span> Open
+                </button>
+            </div>
+            <div class="header-right">
+                <div class="dropdown" id="newDropdown">
+                    <button class="btn btn-secondary" onclick="toggleDropdown('newDropdown')">
+                        <span>➕</span> New <span>▼</span>
+                    </button>
+                    <div class="dropdown-content">
+                        <div class="dropdown-item" onclick="newFile('python')">
+                            <span>🐍</span> Python File
+                        </div>
+                        <div class="dropdown-item" onclick="newFile('javascript')">
+                            <span>📜</span> JavaScript File
+                        </div>
+                        <div class="dropdown-item" onclick="newFile('html')">
+                            <span>🌐</span> HTML File
+                        </div>
+                        <div class="dropdown-item" onclick="newFile('json')">
+                            <span>📋</span> JSON File
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item" onclick="newFile('text')">
+                            <span>📝</span> Text File
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-success" onclick="saveFile()">
+                    <span>💾</span> Save
+                </button>
+                <div class="toolbar-separator"></div>
+                <button class="btn btn-secondary" onclick="toggleSettings()">
+                    <span>⚙️</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main">
+            <!-- Sidebar -->
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <span>📁 Explorer</span>
+                    <span onclick="refreshFileTree()" style="cursor: pointer;">🔄</span>
+                </div>
+                <div class="sidebar-content">
+                    <ul class="file-tree" id="fileTree">
+                        <!-- File tree populated dynamically -->
+                        <li class="file-tree-item" onclick="showEmptyState()">
+                            <span class="icon">📂</span>
+                            <span>No folder opened</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Editor Container -->
+            <div class="editor-container">
+                <div id="editor"></div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-left">
+                <div class="status-item" onclick="toggleBranch()">
+                    <span>🌿</span>
+                    <span id="branchName">main</span>
+                </div>
+                <div class="status-item" id="cursorPosition">
+                    <span>📍</span>
+                    <span>Ln 1, Col 1</span>
+                </div>
+                <div class="status-item" id="fileInfo">
+                    <span>📄</span>
+                    <span>UTF-8</span>
+                </div>
+            </div>
+            <div class="status-right">
+                <div class="status-item" onclick="toggleLanguage()">
+                    <span id="languageMode">Python</span>
+                </div>
+                <div class="status-item" onclick="toggleTheme()">
+                    <span id="themeIndicator">🌙 Dark</span>
+                </div>
+                <div class="status-item">
+                    <span>🔔</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div class="overlay" id="settingsOverlay" onclick="toggleSettings()"></div>
+
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-header">
+            <span>⚙️ Editor Settings</span>
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">Theme</span>
+            <div class="setting-control">
+                <select id="themeSelect" onchange="changeTheme(this.value)">
+                    <option value="vs-dark">Dark</option>
+                    <option value="vs">Light</option>
+                    <option value="hc-black">High Contrast</option>
+                </select>
+            </div>
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">Font Size</span>
+            <div class="setting-control">
+                <select id="fontSizeSelect" onchange="changeFontSize(this.value)">
+                    <option value="12">12px</option>
+                    <option value="14" selected>14px</option>
+                    <option value="16">16px</option>
+                    <option value="18">18px</option>
+                    <option value="20">20px</option>
+                </select>
+            </div>
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">Minimap</span>
+            <div class="setting-control">
+                <input type="checkbox" id="minimapCheck" checked onchange="toggleMinimap(this.checked)">
+            </div>
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">Line Numbers</span>
+            <div class="setting-control">
+                <input type="checkbox" id="lineNumbersCheck" checked onchange="toggleLineNumbers(this.checked)">
+            </div>
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">Word Wrap</span>
+            <div class="setting-control">
+                <input type="checkbox" id="wordWrapCheck" onchange="toggleWordWrap(this.checked)">
+            </div>
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">Auto Indent</span>
+            <div class="setting-control">
+                <input type="checkbox" id="autoIndentCheck" checked onchange="toggleAutoIndent(this.checked)">
+            </div>
+        </div>
+        <div class="setting-item">
+            <span class="setting-label">Format On Save</span>
+            <div class="setting-control">
+                <input type="checkbox" id="formatOnSaveCheck" onchange="toggleFormatOnSave(this.checked)">
+            </div>
+        </div>
+        <div style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="btn btn-secondary" onclick="toggleSettings()">Close</button>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Monaco Editor Loader -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    <script>
+        // Global variables
+        let editor;
+        let currentFile = null;
+        let currentTheme = 'vs-dark';
+        let formatOnSave = false;
+
+        // Initialize Monaco Editor
+        require.config({
+            paths: {
+                'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'
+            }
+        });
+
+        require(['vs/editor/editor.main'], function() {
+            // Hide loading overlay
+            document.getElementById('loadingOverlay').style.display = 'none';
+
+            // Create editor
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: getWelcomeMessage(),
+                language: 'python',
+                theme: 'vs-dark',
+                fontSize: 14,
+                fontFamily: 'Consolas, "Courier New", monospace',
+                lineNumbers: 'on',
+                minimap: {
+                    enabled: true,
+                    side: 'right',
+                    showSlider: 'mouseover'
+                },
+                folding: true,
+                foldingStrategy: 'indentation',
+                automaticLayout: true,
+                scrollBeyondLastLine: true,
+                smoothScrolling: true,
+                cursorBlinking: 'blink',
+                cursorSmoothCaretAnimation: 'on',
+                formatOnPaste: true,
+                formatOnType: true,
+                autoIndent: 'full',
+                tabSize: 4,
+                insertSpaces: true,
+                detectIndentation: true,
+                wordWrap: 'off',
+                renderWhitespace: 'selection',
+                bracketPairColorization: {
+                    enabled: true
+                },
+                guides: {
+                    bracketPairs: true,
+                    indentation: true
+                },
+                suggest: {
+                    showKeywords: true,
+                    showSnippets: true
+                },
+                quickSuggestions: {
+                    other: true,
+                    comments: true,
+                    strings: true
+                },
+                parameterHints: {
+                    enabled: true
+                },
+                hover: {
+                    enabled: true
+                }
+            });
+
+            // Update cursor position in status bar
+            editor.onDidChangeCursorPosition(function(e) {
+                document.getElementById('cursorPosition').innerHTML = 
+                    `<span>📍</span><span>Ln ${e.position.lineNumber}, Col ${e.position.column}</span>`;
+            });
+
+            // Keyboard shortcuts
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
+                saveFile();
+            });
+
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyO, function() {
+                loadFile();
+            });
+
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyP, function() {
+                editor.getAction('editor.action.quickCommand').run();
+            });
+
+            // Register Python-specific features
+            monaco.languages.registerCompletionItemProvider('python', {
+                provideCompletionItems: function() {
+                    return {
+                        suggestions: [
+                            {
+                                label: 'def',
+                                kind: monaco.languages.CompletionItemKind.Keyword,
+                                insertText: 'def ${1:function_name}(${2:params}):\n    ${3:pass}',
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                documentation: 'Define a function'
+                            },
+                            {
+                                label: 'class',
+                                kind: monaco.languages.CompletionItemKind.Keyword,
+                                insertText: 'class ${1:ClassName}:\n    def __init__(self):\n        ${2:pass}',
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                documentation: 'Define a class'
+                            },
+                            {
+                                label: 'ifmain',
+                                kind: monaco.languages.CompletionItemKind.Snippet,
+                                insertText: "if __name__ == '__main__':\n    ${1:main()}",
+                                insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                                documentation: 'Main guard'
+                            }
+                        ]
+                    };
+                }
+            });
+
+            showToast('Editor ready', 'success');
+        });
+
+        // Welcome message
+        function getWelcomeMessage() {
+            return `# Welcome to 4S1T Agent AI - Monaco Editor
+# 
+# Features:
+#   ✓ Syntax highlighting for Python
+#   ✓ Line numbers and code folding
+#   ✓ Auto-indentation
+#   ✓ Minimap overview
+#   ✓ Multiple themes (Dark/Light/High Contrast)
+#   ✓ IntelliSense and autocomplete
+#   ✓ Keyboard shortcuts (Ctrl+S to save, Ctrl+O to open)
+#
+# Start coding below:
+
+print("Hello, 4S1T Agent AI!")
+
+`;
+        }
+
+        // File operations
+        function newFile(language) {
+            const templates = {
+                python: `# New Python File
+# Created: ${new Date().toISOString()}
+
+print("Hello, World!")
+`,
+                javascript: `// New JavaScript File
+// Created: ${new Date().toISOString()}
+
+console.log("Hello, World!");
+`,
+                html: `<!DOCTYPE html>
+<html>
+<head>
+    <title>New Page</title>
+</head>
+<body>
+    <h1>Hello, World!</h1>
+</body>
+</html>
+`,
+                json: `{
+    "name": "new-file",
+    "version": "1.0.0",
+    "created": "${new Date().toISOString()}"
+}
+`,
+                text: `New Text File
+Created: ${new Date().toISOString()}
+`
+            };
+
+            editor.setValue(templates[language] || '');
+            monaco.editor.setModelLanguage(editor.getModel(), language);
+            document.getElementById('filePath').value = '';
+            document.getElementById('languageMode').textContent = language.charAt(0).toUpperCase() + language.slice(1);
+            currentFile = null;
+            toggleDropdown('newDropdown');
+            showToast(`New ${language} file created`, 'success');
+        }
+
+        async function loadFile() {
+            const filePath = document.getElementById('filePath').value.trim();
+            if (!filePath) {
+                showToast('Please enter a file path', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/files/load?path=${encodeURIComponent(filePath)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    editor.setValue(data.content);
+                    
+                    // Set language based on file extension
+                    const ext = filePath.split('.').pop().toLowerCase();
+                    const langMap = {
+                        'py': 'python',
+                        'js': 'javascript',
+                        'ts': 'typescript',
+                        'html': 'html',
+                        'css': 'css',
+                        'json': 'json',
+                        'md': 'markdown',
+                        'yaml': 'yaml',
+                        'yml': 'yaml',
+                        'xml': 'xml',
+                        'sql': 'sql'
+                    };
+                    monaco.editor.setModelLanguage(editor.getModel(), langMap[ext] || 'text');
+                    document.getElementById('languageMode').textContent = langMap[ext] || 'Text';
+                    
+                    currentFile = filePath;
+                    showToast(`Loaded: ${filePath}`, 'success');
+                } else {
+                    const error = await response.text();
+                    showToast(`Failed to load: ${error}`, 'error');
+                }
+            } catch (error) {
+                // Demo mode - simulate file load
+                showToast('API not available - demo mode', 'info');
+                editor.setValue(`# Simulated file: ${filePath}\n# In production, this would load from the server`);
+            }
+        }
+
+        async function saveFile() {
+            let filePath = document.getElementById('filePath').value.trim();
+            if (!filePath && !currentFile) {
+                filePath = prompt('Enter file path to save:');
+                if (!filePath) return;
+                document.getElementById('filePath').value = filePath;
+            } else if (!filePath && currentFile) {
+                filePath = currentFile;
+            }
+
+            const content = editor.getValue();
+
+            if (formatOnSave) {
+                editor.getAction('editor.action.formatDocument').run();
+            }
+
+            try {
+                const response = await fetch('/api/files/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        path: filePath,
+                        content: content
+                    })
+                });
+
+                if (response.ok) {
+                    currentFile = filePath;
+                    showToast(`Saved: ${filePath}`, 'success');
+                } else {
+                    const error = await response.text();
+                    showToast(`Failed to save: ${error}`, 'error');
+                }
+            } catch (error) {
+                // Demo mode - simulate file save
+                console.log('Save content:', content);
+                showToast('API not available - content logged to console', 'info');
+            }
+        }
+
+        // Settings
+        function toggleSettings() {
+            document.getElementById('settingsOverlay').classList.toggle('active');
+            document.getElementById('settingsPanel').classList.toggle('active');
+        }
+
+        function changeTheme(theme) {
+            currentTheme = theme;
+            monaco.editor.setTheme(theme);
+            document.getElementById('themeIndicator').textContent = theme === 'vs' ? '☀️ Light' : '🌙 Dark';
+        }
+
+        function toggleTheme() {
+            const newTheme = currentTheme === 'vs-dark' ? 'vs' : 'vs-dark';
+            changeTheme(newTheme);
+            document.getElementById('themeSelect').value = newTheme;
+        }
+
+        function changeFontSize(size) {
+            editor.updateOptions({ fontSize: parseInt(size) });
+        }
+
+        function toggleMinimap(enabled) {
+            editor.updateOptions({ minimap: { enabled: enabled } });
+        }
+
+        function toggleLineNumbers(enabled) {
+            editor.updateOptions({ lineNumbers: enabled ? 'on' : 'off' });
+        }
+
+        function toggleWordWrap(enabled) {
+            editor.updateOptions({ wordWrap: enabled ? 'on' : 'off' });
+        }
+
+        function toggleAutoIndent(enabled) {
+            editor.updateOptions({ autoIndent: enabled ? 'full' : 'advanced' });
+        }
+
+        function toggleFormatOnSave(enabled) {
+            formatOnSave = enabled;
+        }
+
+        // UI Helpers
+        function toggleDropdown(id) {
+            document.getElementById(id).classList.toggle('active');
+        }
+
+        function showEmptyState() {
+            showToast('Open a folder to browse files', 'info');
+        }
+
+        function refreshFileTree() {
+            showToast('Refreshing file tree...', 'info');
+            // TODO: Implement file tree refresh
+        }
+
+        function toggleBranch() {
+            showToast('Git branch: main', 'info');
+        }
+
+        function toggleLanguage() {
+            const languages = ['python', 'javascript', 'html', 'json', 'text'];
+            const current = editor.getModel().getLanguageId();
+            const next = languages[(languages.indexOf(current) + 1) % languages.length];
+            monaco.editor.setModelLanguage(editor.getModel(), next);
+            document.getElementById('languageMode').textContent = next.charAt(0).toUpperCase() + next.slice(1);
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icon = type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ';
+            toast.innerHTML = `
+                <span>${icon}</span>
+                <span>${message}</span>
+                <span class="toast-close" onclick="this.parentElement.remove()">×</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.querySelectorAll('.dropdown').forEach(d => d.classList.remove('active'));
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Escape to close settings
+            if (e.key === 'Escape') {
+                document.getElementById('settingsOverlay').classList.remove('active');
+                document.getElementById('settingsPanel').classList.remove('active');
+            }
+        });
+
+        // Window resize
+        window.addEventListener('resize', function() {
+            if (editor) {
+                editor.layout();
+            }
+        });
+    </script>
+</body>
+</html>

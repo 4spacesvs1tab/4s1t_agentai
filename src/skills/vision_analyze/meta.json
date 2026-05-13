@@ -1,0 +1,50 @@
+{
+  "name": "vision_analyze",
+  "version": "1.0.0",
+  "description": "Analyse an image using a vision-capable LLM. Accepts a local file path or a public image URL. Returns a structured analysis of the image content. Use for BPMN diagrams, UML charts, process flowcharts, architecture diagrams, screenshots, and any non-text visual content. Requires the active provider to have a 'vision' model preference configured.",
+  "agent_scope": ["ba_agent"],
+  "execution_mode": "subprocess",
+  "timeout_seconds": 60,
+  "max_memory_mb": 256,
+  "network_allowed": true,
+  "filesystem_access": "read",
+  "secrets_required": [],
+  "requires_approval": false,
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "image": {
+        "type": "string",
+        "description": "Path to a local image file (absolute or relative to project root) OR a public https:// image URL."
+      },
+      "question": {
+        "type": "string",
+        "description": "What to analyse or extract from the image. Example: 'Identify all BPMN swim lanes and decision points.' or 'List the entities and relationships shown in this UML diagram.' If omitted, the skill generates a general description of the image content.",
+        "default": "Describe the content of this image in detail."
+      },
+      "context": {
+        "oneOf": [{"type": "string"}, {"type": "null"}],
+        "description": "Optional text context to help interpret the image (e.g., 'This is a BPMN process model for a loan approval workflow.'). Null if no additional context.",
+        "default": null
+      }
+    },
+    "required": ["image"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "analysis": {
+        "type": "string",
+        "description": "LLM-generated analysis of the image content."
+      },
+      "model_used": {
+        "type": "string",
+        "description": "Vision model that produced the analysis."
+      },
+      "image_source": {
+        "type": "string",
+        "description": "Resolved image source: 'url' or 'file'."
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+# Agent and KB tuning parameters.
+#
+# Defaults match the previously hardcoded values — no behaviour change on first
+# deploy.  Operators can override any value here without touching source code.
+#
+# See src/config/agent_config.py for the dataclass schema.
+
+orchestrator:
+  # Characters above which inter-wave results are compressed before the next wave.
+  # ~8 000 tokens × 4 chars/token
+  handoff_token_threshold: 32000
+
+  # Prompt length (chars) above which a task is considered complex even without keywords.
+  trivial_max_len: 300
+
+  # Maximum subtasks allowed in a single decomposition (injection-guard).
+  max_subtasks: 10
+
+kb:
+  preprocessor:
+    # Content longer than this (chars) gets a summary chunk.
+    # 2 000 tokens × 4 chars/token = 8 000 chars
+    longform_char_threshold: 8000
+
+    # Cosine similarity threshold for semantic near-duplicate detection (G23).
+    dedup_similarity_threshold: 0.97
+
+    # Similarity band for contradiction detection (G8).
+    # Chunks with score in [low, high) are "same topic, possibly different view".
+    contradiction_sim_range_low: 0.65
+    contradiction_sim_range_high: 0.95
+
+  scheduler:
+    # Seconds to wait at startup before the first tick, giving the Nostr service
+    # and other subsystems time to become ready.
+    startup_delay_seconds: 10
+
+  resolver:
+    # Minimum fuzzy-match confidence for auto-selecting a single account without
+    # surfacing alternatives to the user.
+    min_confidence_auto: 0.72
